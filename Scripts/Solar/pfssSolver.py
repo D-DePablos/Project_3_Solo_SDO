@@ -80,8 +80,10 @@ class PFSSSolver:
         self.seeds = seeds
         return seeds
 
-    def traceFlines(self):
+    def traceFlines(self, **kwargs):
         self.flines = self.tracer.trace(self.seeds, self.output)
+        if "seedtimes" in kwargs:
+            return kwargs["seedtimes"]
 
     def plotMG(self, **kwargs):
         """

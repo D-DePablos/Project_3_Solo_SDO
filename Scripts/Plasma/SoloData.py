@@ -37,6 +37,7 @@ class SoloManager:
             ] 
         """
 
+        # Must download myself!
         for index, file in enumerate(sorted(glob(f"{cdfPath}*.cdf"))):
             cdf = cdflib.CDF(file)
             time = cdfEpoch.to_datetime(cdf["Epoch"])
@@ -118,6 +119,7 @@ class SoloManager:
 
         self.flineCoordsList = flineCoordsList
         self.SSFootPoints = [coord[-1] for coord in flineCoordsList]
+        self.sourcePointsSPC = self.coordsCarrington.obstime
 
 
 if __name__ == "__main__":

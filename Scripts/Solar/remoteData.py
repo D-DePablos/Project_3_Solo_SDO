@@ -29,39 +29,84 @@ class RemoteManager:
         self.path = path
         self.dfiles = None
 
-    @staticmethod
-    def findClosestFile(dfiles, dateFind=datetime(2020, 5, 27, 1)):
+    def findClosestFile(
+            self,
+            dfiles,
+            dateFind=datetime(2020, 5, 27, 1),
+            margin=3,
+    ):
         idx = dfiles.index[dfiles.index.get_loc(dateFind, method='nearest')]
-        print(f"{dfiles.loc[idx].name - dateFind} difference to relevant date")
-        return dfiles.loc[idx]
+        timediff = np.abs(
+            (dfiles.loc[idx].name - dateFind).total_seconds() / 3600)
+        if timediff >= margin:
+            from datetime import timedelta
+            timeStrStart = dateFind.strftime("%Y/%m/%d %H:%M")
+            timeStrEnd = (dateFind +
+                          timedelta(hours=margin)).strftime("%Y/%m/%d %H:%M")
+            self.attrsTime = a.Time(TimeRange(timeStrStart, timeStrEnd))
+            self.downloadData(force=True)
+            idx = dfiles.index[dfiles.index.get_loc(dateFind,
+                                                    method='nearest')]
+            timediff = np.abs(
+                (dfiles.loc[idx].name - dateFind).total_seconds() / 3600)
+
+        return dfiles.loc[idx], timediff
 
     @staticmethod
-    def plot(map, title, **kwargs):
+    def plot(map, title, margin=3, **kwargs):
         """
-        Pass a map, optionally seeds and field lines
+        Pass a map, optionally field lines and another map projected on top
         """
         import matplotlib.pyplot as plt
-        fig = plt.figure()
+        plt.figure()
         ax = plt.subplot(1, 1, 1, projection=map)
         map.plot(ax)
 
-        if "flines" in kwargs:
-            for fline in kwargs["flines"]:
-                ax.plot_coord(
-                    fline.coords,
-                    color='blue',
-                    linewidth=1,
-                    alpha=0.4,
-                )
-                ax.plot_coord(fline.solar_footpoint,
-                              color="red",
-                              marker="x",
-                              linewidth=0,
-                              markersize=5)
-            title = title + "| flines (blue)"
+        if "extraMap" in kwargs:
+            overlay = ax.get_coords_overlay(
+                kwargs["extraMap"].coordinate_frame)
+            overlay.grid()
+
+        if "flines" in kwargs and "flineTimes" in kwargs and "flineOriginTime" in kwargs:
+            with open(
+                    "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/logsCoords/logs.txt",
+                    "a") as f:
+                f.write(f"\n### \nAIA MAP {map.date}\n")
+                for time, fline, spcTime in zip(kwargs["flineTimes"],
+                                                kwargs["flines"],
+                                                kwargs["flineOriginTime"]):
+                    if margin >= np.abs(
+                        (map.date.datetime - time.value).total_seconds() /
+                            3600):
+                        # For each of the field lines, compare to the time of the original map
+
+                        ax.plot_coord(
+                            fline.coords.helioprojective,
+                            # color='blue',
+                            linewidth=1,
+                            alpha=0.4,
+                            label=f"{spcTime.value}",
+                        )
+                        f.write(
+                            f"{fline.solar_footpoint.helioprojective.Tx} | {fline.solar_footpoint.helioprojective.Ty} | {fline.solar_footpoint.lon} \n"
+                        )
+                        color = "white" if np.abs(
+                            fline.solar_footpoint.heliographic_stonyhurst.lon.
+                            value) < 90 else "red"
+                        ax.plot_coord(fline.solar_footpoint.helioprojective,
+                                      color=color,
+                                      marker="x",
+                                      linewidth=0,
+                                      markersize=5)
+                plt.legend()
+                title = title + f"| flines (SPC time) -> Margin {margin} hours vs AIA"
+                f.close()
 
         ax.set_title(title)
-        plt.show()
+        plt.savefig(
+            f"{kwargs['savePath']}AIA{int(map.wavelength.value)}{map.date.datetime.strftime('%Y-%m-%d_%H-%M')}.png"
+        )
+        plt.close()
 
 
 class GONGManager(RemoteManager):
@@ -78,15 +123,14 @@ class GONGManager(RemoteManager):
     def downloadData(self):
         results = Fido.search(self.attrsTime, self.instrument)
         self.file = Fido.fetch(results[0], path=self.path)  # Fetching only one
-        self.map = Map(self.file)
-        self.map = Map(self.map.data - np.mean(self.map.data), self.map.meta)
+        gongmap = Map(self.file)
+        self.map = Map(gongmap.data - np.mean(gongmap.data), gongmap.meta)
         return self.map
 
 
 class SDOAIAManager(RemoteManager):
     """
     Simple function to get SDOAIA data from sunpy into a map
-    TODO : Add AIA plotting
     """
     def __init__(self,
                  times,
@@ -102,10 +146,22 @@ class SDOAIAManager(RemoteManager):
         self.path = f"{self.path}{int(wavelength.value)}/"
         makedirs(self.path, exist_ok=True)
 
-    def downloadData(self):
-        results = Fido.search(self.attrsTime, self.instrument, self.cadence,
-                              self.wavelength)
-        files = sorted(Fido.fetch(results, path=self.path))
+    def downloadData(self, force=False):
+        if not force:
+            try:
+                from glob import glob
+                files = sorted(glob(f"{self.path}*"))
+
+            except FileNotFoundError:
+                results = Fido.search(self.attrsTime, self.instrument,
+                                      self.cadence, self.wavelength)
+                files = sorted(Fido.fetch(results, path=self.path))
+
+        else:
+            results = Fido.search(self.attrsTime, self.instrument,
+                                  self.cadence, self.wavelength)
+            files = sorted(Fido.fetch(results, path=self.path))
+
         fileTime = [
             datetime.strptime(file[-39:-20], "%Y_%m_%dt%H_%M_%S")
             for file in files
@@ -122,11 +178,11 @@ class SDOAIAManager(RemoteManager):
         return m_normalized
 
 
-if __name__ == "__main__":
-    timesGONG = ("2020/05/27", "2020/05/27 00:20")
-    timesAIA = ("2020/05/27", "2020/05/27 3:20")
-    gong = GONGManager(times=timesGONG)
-    gong.downloadData()
-    sdoaia = SDOAIAManager(timesAIA)
-    sdoaia.downloadData()
-    sdoaia.findClosestFile(dfiles=sdoaia.dfiles)
+# if __name__ == "__main__":
+#     timesGONG = ("2020/05/27", "2020/05/27 00:20")
+#     timesAIA = ("2020/05/27", "2020/05/27 3:20")
+#     gong = GONGManager(times=timesGONG)
+#     gong.downloadData()
+#     sdoaia = SDOAIAManager(timesAIA)
+#     sdoaia.downloadData()
+#     sdoaia.findClosestFile(dfiles=sdoaia.dfiles)

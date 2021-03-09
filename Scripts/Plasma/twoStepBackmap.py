@@ -1,17 +1,23 @@
+from os import makedirs
+from sunpy.time.timerange import TimeRange
 from Plasma.SoloData import SoloManager
 from Solar.remoteData import SDOAIAManager, GONGManager
 from Solar.pfssSolver import PFSSSolver
 from astropy import constants as const
 from astropy import units as u
+import pandas as pd
 
 from datetime import datetime, timedelta
-
+# TODO : Get most likely SDOAIA time for Solo conjunction
 # Get SolO data
 ssRadius = 2.5
 accFactor = 4 / 3
+MARGINAIA, MARGINFLINE = 1, 1
 
 startSolo = datetime(2020, 5, 30, 12)
 endSolo = datetime(2020, 6, 1)
+# startSolo = datetime(2020, 7, 7, 12)
+# endSolo = datetime(2020, 7, 8)
 
 gongTimeStart = startSolo - timedelta(days=3)
 gongTimeEnd = gongTimeStart + timedelta(minutes=20)
@@ -20,10 +26,12 @@ gongTime = (
     f"{gongTimeEnd.year}/{gongTimeEnd.month}/{gongTimeEnd.day} {gongTimeEnd.hour}:{gongTimeEnd.minute}"
 )
 
+# Set AIA date, possibly change it within loop?
+dateAIA = gongTimeStart  # - timedelta(days=1)
+
 solo = SoloManager(times=(startSolo, endSolo))
 gong = GONGManager(times=gongTime)
-# aia = SDOAIAManager(times=("2020/5/26", "2020/5/28"))
-aia = SDOAIAManager(times=("2020/5/16", "2020/5/18"))
+aia = SDOAIAManager(times=("2020/5/26", "2020/5/28"))
 
 # Extract orbit and backmap to Sun
 solo.extractSolOrbit()
@@ -34,14 +42,31 @@ solo.backmapSun(accelerated=accFactor)
 gongMap = gong.downloadData()
 pfss = PFSSSolver(gongMap, SSradius=ssRadius)
 pfss.createSeedsFromList(solo.SSFootPoints)
-pfss.traceFlines()
+seedTimes = pfss.traceFlines(seedtimes=pfss.dfseeds.index)
 # pfss.plotMG(seeds=pfss.seeds, flines=pfss.flines)
 
 # Overplot Field lines on SDOAIA map
 aia.downloadData()
-aiaFile = aia.findClosestFile(dfiles=aia.dfiles,
-                              dateFind=datetime(2020, 5, 16, 12))
-aiaMap = aia.aiaprep(aiaFile.file)
-aia.plot(aiaMap, title=f"SDO AIA 193 {aiaMap.date.value}", flines=pfss.flines)
+time_1 = (gongTimeStart - timedelta(hours=24))
+time_2 = (gongTimeStart + timedelta(hours=24))
+timeRange = [d for d in pd.date_range(time_1, time_2, freq="30M")]
+savePath = f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/logsCoords/{accFactor:.2f}/"
+makedirs(savePath, exist_ok=True)
 
-# TODO Check that there is a coordinate conversion from Heliographic Carrington to SDOAIA coords
+for index, date_AIA in enumerate(timeRange):
+    aiaFile, timeDiff = aia.findClosestFile(dfiles=aia.dfiles,
+                                            dateFind=date_AIA,
+                                            margin=MARGINAIA)
+    aiaMap = aia.aiaprep(aiaFile.file)
+    aia.plot(
+        aiaMap,
+        title=f"SDO AIA 193 {aiaMap.date.datetime.strftime('%m-%d %H:%M')}",
+        margin=MARGINFLINE,
+        flines=pfss.flines,
+        flineTimes=seedTimes,
+        flineOriginTime=solo.sourcePointsSPC,
+        savePath=savePath,
+        index=index,
+    )
+
+    # TODO Check that there is a coordinate conversion from Heliographic Carrington to SDOAIA coords
