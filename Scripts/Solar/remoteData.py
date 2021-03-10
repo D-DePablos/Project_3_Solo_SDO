@@ -27,6 +27,7 @@ class RemoteManager:
         self.cadence = a.Sample(cadence)
         self.instrument = a.Instrument(instrument)
         self.path = path
+        print(f"Using {self.path}")
         self.dfiles = None
 
     def findClosestFile(
@@ -122,20 +123,11 @@ class GONGManager(RemoteManager):
 
     def downloadData(self):
         results = Fido.search(self.attrsTime, self.instrument)
-        print(results)
-        response = input("Would you like to download the above shown files?")
 
-        if response.lower() == "y":
-            self.file = Fido.fetch(results[0],
-                                   path=self.path)  # Fetching only one
-            gongmap = Map(self.file)
-            self.map = Map(gongmap.data - np.mean(gongmap.data), gongmap.meta)
-            return self.map
-
-        else:
-            raise ValueError(
-                f"{response} is not 'y' and files are not downloaded. Stopping"
-            )
+        self.file = Fido.fetch(results[0], path=self.path)  # Fetching only one
+        gongmap = Map(self.file)
+        self.map = Map(gongmap.data - np.mean(gongmap.data), gongmap.meta)
+        return self.map
 
 
 class SDOAIAManager(RemoteManager):
@@ -167,10 +159,23 @@ class SDOAIAManager(RemoteManager):
                                       self.cadence, self.wavelength)
                 files = sorted(Fido.fetch(results, path=self.path))
 
-        else:
+        elif force:
+
             results = Fido.search(self.attrsTime, self.instrument,
                                   self.cadence, self.wavelength)
+
+        print(results)
+        response = input(
+            f"Would you like to download the above shown files into {self.path}?"
+        )
+
+        if response.lower() == "y":
             files = sorted(Fido.fetch(results, path=self.path))
+
+        else:
+            raise ValueError(
+                f"{response} is not 'y' and files are not downloaded. Stopping"
+            )
 
         fileTime = [
             datetime.strptime(file[-39:-20], "%Y_%m_%dt%H_%M_%S")
