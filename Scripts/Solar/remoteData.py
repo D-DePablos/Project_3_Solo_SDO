@@ -122,10 +122,20 @@ class GONGManager(RemoteManager):
 
     def downloadData(self):
         results = Fido.search(self.attrsTime, self.instrument)
-        self.file = Fido.fetch(results[0], path=self.path)  # Fetching only one
-        gongmap = Map(self.file)
-        self.map = Map(gongmap.data - np.mean(gongmap.data), gongmap.meta)
-        return self.map
+        print(results)
+        response = input("Would you like to download the above shown files?")
+
+        if response.lower() == "y":
+            self.file = Fido.fetch(results[0],
+                                   path=self.path)  # Fetching only one
+            gongmap = Map(self.file)
+            self.map = Map(gongmap.data - np.mean(gongmap.data), gongmap.meta)
+            return self.map
+
+        else:
+            raise ValueError(
+                f"{response} is not 'y' and files are not downloaded. Stopping"
+            )
 
 
 class SDOAIAManager(RemoteManager):
