@@ -15,7 +15,7 @@ def getRemoteData():
     """
     Gets the remote data using remoteData AIAManager class
     """
-    from Solar.remoteData import SDOAIAManager
+    from .remoteData import SDOAIAManager
     from astropy import units as u
 
     sdoaia = SDOAIAManager(times=("2020/5/27", "2020/5/28 14:00"),
