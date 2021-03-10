@@ -170,6 +170,7 @@ class SDOAIAManager(RemoteManager):
         )
 
         if response.lower() == "y":
+            print(self.path)
             files = sorted(Fido.fetch(results, path=self.path))
 
         else:
