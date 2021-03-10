@@ -1,7 +1,6 @@
 import os
 import sys
 
-print(type(sys.path))
 module_path = os.path.abspath(os.path.join(f"{os.getcwd()}/../"))
 
 for module in [module_path]:
@@ -15,12 +14,12 @@ def getRemoteData():
     """
     Gets the remote data using remoteData AIAManager class
     """
-    from .remoteData import SDOAIAManager
+    from remoteData import SDOAIAManager
     from astropy import units as u
 
     sdoaia = SDOAIAManager(times=("2020/5/27", "2020/5/28 14:00"),
                            cadence=1 * u.minute,
-                           aiaPath="")
+                           aiaPath="/disk/solar18/ddp/PhD/3_SolO_SDO/unsafe/remoteData/AIA/")
     sdoaia.downloadData(force=True)
 
 
