@@ -1,0 +1,20 @@
+On the (PRIVATE) Notion notebook (https://www.notion.so/Third-Paper-d7c6e2b444934d079183233e5fe40acf), we see two possible situations
+
+Accelerated Solar Wind (4/3) profile:
+SDOAIA 05-27 05:00 (+- 1 hour): SolO possible times [2020-05-31]
+    - 14:00
+    - 17:00
+    - 18:00
+    - 20:00
+    - 21:00
+
+Based on the above, we should use AIA as the short timeseries, and SolO as the long timeseries.
+Slide three distinct AIA times: 05/06/07, one hour(?) of measurements, over the Solar Orbiter TS
+
+
+If we assume constant speed, however:
+SDOAIA 05-28 05:00 (+- 1 hour): SolO Possible times [2020-05-31]
+    - 11:00
+    - 12:00
+    - 13:00
+Based on the above,  we can also use AIA as the short timeseries and slide it accross the same SolO observations
