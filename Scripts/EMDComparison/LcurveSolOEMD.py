@@ -16,9 +16,23 @@ from Plasma.SoloData import SoloManager
 
 
 # Import the following functions into the AnySpacecraft_data script
-def compareLCurvesToSolo(selfObj_Short, otherObj_Long, selfVars, otherVars,
-                         selfTimes, otherTimes, selfName, otherName, selfCad,
-                         otherCad, objDirExt):
+def compareLCurvesToSolo(
+    selfObj_Short,
+    otherObj_Long,
+    selfVars,
+    otherVars,
+    selfTimes,
+    otherTimes,
+    selfName,
+    otherName,
+    selfCad,
+    otherCad,
+    objDirExt,
+    PeriodMinMax=[1, 180],
+    filterPeriods=False,
+    delete=True,
+    showFig=True,
+):
     """
     Feed in the PSP Spacecraft and SolOSpc object
     Self is expected to be solar orbiter
@@ -26,6 +40,10 @@ def compareLCurvesToSolo(selfObj_Short, otherObj_Long, selfVars, otherVars,
     """
     # Set header of directories
     general_directory = f"{BASE_PATH}unsafe/EMD_Data/"
+    # TODO: Delete only the specific folder
+    # if delete:
+    #     from shutil import rmtree
+    #     rmtree(general_directory, ignore_errors=True)
     makedirs(general_directory, exist_ok=True)
 
     ### Directory structure
@@ -35,10 +53,11 @@ def compareLCurvesToSolo(selfObj_Short, otherObj_Long, selfVars, otherVars,
 
     # Set the Self and Other dataframe to those within the Spacecraft object
     dfSelf = selfObj_Short.df[selfVars]
-    dfSelf.columns = [f"{selfName}{i}" for i in selfVars]  # Rename the columns
+    dfSelf.columns = [f"{selfName}_{i}"
+                      for i in selfVars]  # Rename the columns
 
     dfOther = otherObj_Long.df[otherVars]
-    dfOther.columns = [f"{otherName}{i}" for i in otherVars]
+    dfOther.columns = [f"{otherName}_{i}" for i in otherVars]
 
     # Cut down the self and other dataseries
     dfSelf = dfSelf[selfTimes[0]:selfTimes[1]]
@@ -46,31 +65,58 @@ def compareLCurvesToSolo(selfObj_Short, otherObj_Long, selfVars, otherVars,
     cadSelf = selfCad
     cadOther = otherCad
 
-    labelSelf = selfName
-
     compareTS(
         dfSelf,
         dfOther,
         cadSelf,
         cadOther,
-        labelSelf,
+        labelOther=otherName,
         winDispList=[60],
-        corrThrPlotList=np.arange(0.1, 1, 0.05),
-        PeriodMinMax=[1, 180],  # TODO : Figure out best period
+        corrThrPlotList=np.arange(0.4, 1, 0.05),
+        PeriodMinMax=PeriodMinMax,  # TODO : Figure out best period
+        filterPeriods=filterPeriods,
         savePath=mainDir,
         useRealTime=True,
         expectedLocationList=False,
         detrend_box_width=None,
+        delete=delete,
+        showFig=showFig,
     )
 
 
+def extractDatetimePairs(Case: Dict):
+    """
+    For a given dictionary, create a list of datetime pairs for SolO and AIA
+    """
+
+    aiaMargin = Case["margin"]
+
+    aiaTimes = []
+
+    for margin in range(-aiaMargin, aiaMargin + 1):
+        aiaStart = Case["AIATimes"] + timedelta(hours=margin)
+        aiaEnd = aiaStart + timedelta(hours=Case["margin"])
+        aiaTimes.append((aiaStart, aiaEnd))
+
+    soloStart = Case["SolOTimes"]
+    soloEnd = soloStart + timedelta(hours=Case["soloDurn"])
+    soloTimes = (soloStart, soloEnd)
+
+    return aiaTimes, soloTimes
+
+
 if __name__ == "__main__":
-    OBJ_CAD = "60s"
+    import matplotlib.pyplot as plt
+    objCad = 60
     # Solar Orbiter Data requires start, end
     start = datetime(2020, 5, 30, 12)
     end = datetime(2020, 6, 1)
-    solo = SoloManager(times=(start, end))
-    solo.df = (solo.df.resample(OBJ_CAD).mean()).interpolate()
+    solo = SoloManager(
+        times=(start, end),
+        objCad=objCad,
+        cdfPath=
+        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/")
+    solo.df = solo.df.interpolate()  # Fill gaps
     """
                                 V_R        V_T       V_N          N         T
     2020-05-30 12:00:00  274.279297 -20.320356 -5.449193  43.087570  1.601013
@@ -88,8 +134,11 @@ if __name__ == "__main__":
     soloVars = ["N"]
     # otherVars = ["B_R", "B_T", "B_N", "N", "T"]
 
-    lc = LcurveManager()
-    lc.df = (lc.df.resample(OBJ_CAD).mean()).interpolate()
+    lc = LcurveManager(
+        csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
+        objCad=objCad,
+    )
+    lc.df = lc.df.interpolate()  # Interpolate after forming lc object
     """
                                  16          17          18          21          22          23
     Time                                                                                       
@@ -105,8 +154,8 @@ if __name__ == "__main__":
     2020-05-28 10:44:00  387.059273  619.744718  670.865861  641.993826  661.697023  569.628625
     2020-05-28 10:45:00  386.551898  623.982588  672.670828  641.362444  665.743955  570.076031
     """
-    lcRegs = ["16"]
-    # lcVars = ["16", "17", "18"]
+    # lcRegs = ["16"]
+    lcRegs = ["17", "18", "21", "22", "23"]
 
     # Set up either case that we need to splice dframes
     accCase = {
@@ -123,27 +172,8 @@ if __name__ == "__main__":
         "soloDurn": 6,
     }
 
-    def extractDatetimePairs(Case: Dict):
-        """
-        For a given dictionary, create a list of datetime pairs for SolO and AIA
-        """
-
-        aiaMargin = Case["margin"]
-
-        aiaTimes = []
-
-        for margin in range(-aiaMargin, aiaMargin + 1):
-            aiaStart = Case["AIATimes"] + timedelta(hours=margin)
-            aiaEnd = aiaStart + timedelta(hours=Case["margin"])
-            aiaTimes.append((aiaStart, aiaEnd))
-
-        soloStart = Case["SolOTimes"]
-        soloEnd = soloStart + timedelta(hours=Case["soloDurn"])
-        soloTimes = (soloStart, soloEnd)
-
-        return aiaTimes, soloTimes
-
-    aiaTimesList, soloTimes = extractDatetimePairs(conCase)
+    aiaTimesList, soloTimes = extractDatetimePairs(accCase)
+    # TODO : indicate which of the cases is being tested
 
     selfCad = int(lc.df.index.freq.delta.total_seconds())
     otherCad = int(solo.df.index.freq.delta.total_seconds())
@@ -152,18 +182,25 @@ if __name__ == "__main__":
 
         dirName = f"AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}"
 
-        # TODO : Set these parameters. Self should be SOlO
-        compareLCurvesToSolo(selfObj_Short=lc,
-                             otherObj_Long=solo,
-                             selfVars=lcRegs,
-                             otherVars=soloVars,
-                             selfTimes=aiaTimes,
-                             otherTimes=soloTimes,
-                             selfName="Lcurve_",
-                             otherName="Solo_",
-                             selfCad=60,
-                             otherCad=60,
-                             objDirExt=dirName)
+        compareLCurvesToSolo(
+            selfObj_Short=lc,
+            otherObj_Long=solo,
+            selfVars=lcRegs,
+            otherVars=soloVars,
+            selfTimes=aiaTimes,
+            otherTimes=soloTimes,
+            selfName="Lcurve",
+            otherName="Solo",
+            selfCad=60,
+            otherCad=60,
+            objDirExt=dirName,
+            filterPeriods=True,
+            PeriodMinMax=[20, 80],
+            delete=False,
+            showFig=False,
+        )
 
-        # TODO: Download AIA Fits for the relevant datetimes
-        break
+        # TODO: Download AIA Fits for the relevant datetimes (?)
+        # TODO : Perform analysis (Add relevant coloured columns)
+        # TODO  : Add 211 and 94 Angstrom
+        # break

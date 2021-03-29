@@ -640,8 +640,6 @@ class Signal:
         self.number_of_signals += 1
 
 
-
-
 class SignalFunctions(Signal):
     """
     Class to give functionality to a given signal object. Allows for things like EMD
@@ -739,6 +737,7 @@ class SignalFunctions(Signal):
             useRealTime=False,
             filterPeriods=False,
             filter_low_high=(0, 0),
+            delete=False,
     ):
         """
         Generate array of relevant windows with two timeseries of different length
@@ -753,6 +752,11 @@ class SignalFunctions(Signal):
         long = other
 
         self.filter_low_high = filter_low_high
+        if delete:
+            from shutil import rmtree
+            rmtree(short.saveFolder, ignore_errors=True)
+            print(f"Delete {short.saveFolder}")
+
         self.path_to_signal = f"{short.saveFolder}Split_signal_all_IMFs.npy"
         self.path_to_corr_matrix = f"{short.saveFolder}IMF/Corr_matrix_all.npy"
         self.windowDisp = windowDisp
@@ -788,6 +792,8 @@ class SignalFunctions(Signal):
         self.no_displacements = int(
             np.floor(
                 (long.t[-1] - short.t[-1]) / self.windowDisp))  # In seconds
+
+        print(f"Found {self.no_displacements} displacements possible.")
 
         # If the correlation matrix is set, skip
         try:
@@ -1055,6 +1061,7 @@ class SignalFunctions(Signal):
         margin_hours=0.5,
         bar_width=1.2,
         filterPeriods=True,
+        showFig=False,
     ):
         """
         This function plots the number of IMFs with high correlation for all heights
@@ -1099,7 +1106,6 @@ class SignalFunctions(Signal):
             pe_sp_pairs = np.ndarray(
                 (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 2))
 
-        # TODO: Need to make a new array that holds the distinct p values, or something to that extent
         for height in range(len(corr_matrix[0, 0, :, 0])):
             # Get all pearson, spearman, and valid values
             pearson = corr_matrix[:, :, height, 0]
@@ -1138,8 +1144,8 @@ class SignalFunctions(Signal):
             wind_max = 10 - np.isnan(pearson[:, 0]).sum()
             aia_max = 10 - np.isnan(pearson[0, :]).sum()
 
-            wind_max_sp = 10 - np.isnan(spearman[:, 0]).sum()
-            aia_max_sp = 10 - np.isnan(spearman[0, :]).sum()
+            # wind_max_sp = 10 - np.isnan(spearman[:, 0]).sum()
+            # aia_max_sp = 10 - np.isnan(spearman[0, :]).sum()
             # Filter to only take values where considered valid due to period filtering
             pvalid = pearson[valid == 1]
             rvalid = spearman[valid == 1]
@@ -1561,7 +1567,8 @@ class SignalFunctions(Signal):
             dpi=300,
             bbox_inches="tight",
         )
-        plt.show()
+        if showFig:
+            plt.show()
         plt.close()
 
     def calculate_hitrate(self, save=False):
@@ -1661,14 +1668,17 @@ def compareTS(
     dfOther,
     cadSelf,
     cadOther,
-    labelSelf,
+    labelOther,
     winDispList=[60],
     corrThrPlotList=[],
     PeriodMinMax=[1, 180],
+    filterPeriods=False,
     savePath=None,
     useRealTime=False,
     expectedLocationList=False,
     detrend_box_width=200,
+    delete=False,
+    showFig=True,
 ):
     """
     This function takes two dataframes with variables sampled at the same rate, and performs EMD analysis on them
@@ -1678,7 +1688,7 @@ def compareTS(
 
     # For all of the lightcurves
     for varOther in list(dfOther):
-        otherPath = f"{savePath}{labelSelf}/{varOther}/"
+        otherPath = f"{savePath}{labelOther}/{varOther}/"
         makedirs(otherPath, exist_ok=True)
 
         dataOther = dfOther[varOther]
@@ -1729,7 +1739,8 @@ def compareTS(
                     other=otherSigFunc,
                     windowDisp=windowDisp,
                     useRealTime=useRealTime,
-                    filterPeriods=True,
+                    filterPeriods=filterPeriods,
+                    delete=delete,
                 )
                 selfSigFunc.plot_all_results(
                     other=otherSigFunc,
@@ -1741,6 +1752,7 @@ def compareTS(
                     bar_width=None,
                     useRealTime=useRealTime,
                     expectedLocationList=expectedLocationList,
+                    showFig=showFig,
                 )
 
 

@@ -7,7 +7,8 @@ from datetime import datetime
 class LcurveManager:
     def __init__(
         self,
-        csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/"
+        csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
+        objCad=60,
     ):
         Lc_csv = glob(f"{csvPath}complete_lcurves.csv")[0]
         self.df = pd.read_csv(Lc_csv)
@@ -17,6 +18,8 @@ class LcurveManager:
             # Clear out columns which are empty
             if self.df[column].mean() == 0:
                 del self.df[column]
+
+        self.df = self.df.resample(f"{objCad}s").mean()
 
 
 if __name__ == "__main__":

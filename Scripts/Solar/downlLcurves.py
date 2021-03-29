@@ -8,7 +8,7 @@ for module in [module_path]:
         sys.path.append(module)
 
 
-def getRemoteData():
+def getRemoteData(wavelength=193):
     """
     Gets the remote data using remoteData AIAManager class
     """
@@ -18,8 +18,10 @@ def getRemoteData():
     sdoaia = SDOAIAManager(
         times=("2020/5/27", "2020/5/28 14:00"),
         cadence=1 * u.minute,
-        aiaPath="/disk/solar18/ddp/PhD/3_SolO_SDO/unsafe/remoteData/AIA/")
+        aiaPath="/disk/solar18/ddp/PhD/3_SolO_SDO/unsafe/remoteData/AIA/",
+        wavelength=wavelength * u.Angstrom,
+    )
     sdoaia.downloadData(force=True)
 
 
-getRemoteData()
+getRemoteData(wavelength=193)

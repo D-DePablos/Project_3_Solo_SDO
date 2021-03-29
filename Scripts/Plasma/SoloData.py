@@ -19,7 +19,7 @@ class SoloManager:
         cdfPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/"
     ):
         """ 
-        Variables within the cdf:
+        Variables within the SWEAP CDF:
             [
                 'Epoch', 
                 'Half_interval', 

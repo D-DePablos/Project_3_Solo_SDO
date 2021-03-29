@@ -194,11 +194,13 @@ class SDOAIAManager(RemoteManager):
         return m_normalized
 
 
-# if __name__ == "__main__":
-#     timesGONG = ("2020/05/27", "2020/05/27 00:20")
-#     timesAIA = ("2020/05/27", "2020/05/27 3:20")
-#     gong = GONGManager(times=timesGONG)
-#     gong.downloadData()
-#     sdoaia = SDOAIAManager(timesAIA)
-#     sdoaia.downloadData()
-#     sdoaia.findClosestFile(dfiles=sdoaia.dfiles)
+if __name__ == "__main__":
+    #     timesGONG = ("2020/05/27", "2020/05/27 00:20")
+    #     gong = GONGManager(times=timesGONG)
+    #     gong.downloadData()
+
+    # AIA Times
+    timesAIA = ("2020/05/27", "2020/05/27 3:20")
+    sdoaia = SDOAIAManager(timesAIA)
+    sdoaia.downloadData()
+    sdoaia.findClosestFile(dfiles=sdoaia.dfiles)
