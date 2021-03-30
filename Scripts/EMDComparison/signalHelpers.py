@@ -1326,7 +1326,6 @@ class SignalFunctions(Signal):
 
         # LONG
         long_signal = other
-        # long_signal_time = long_signal.t
         long_values = long_signal.s
 
         # window_width = max(short_time) * 12 / 60
@@ -1393,6 +1392,7 @@ class SignalFunctions(Signal):
             ttindex = (true_time_secs / long_signal.cadence).astype(int)
             true_time_datetime = long_signal.true_time[ttindex]
             time_mid_min = true_time_datetime
+            # TODO : Fix the location of the green bars
             bar_width = short_duration
 
         else:
@@ -1505,8 +1505,8 @@ class SignalFunctions(Signal):
 
                     ax2.text(
                         x=start_expected + timedelta(minutes=15),
-                        y=0.95,
-                        s=f"Bmapped {label}",
+                        y=1.05,
+                        s=f"{label}",
                     )
 
         else:
@@ -1519,28 +1519,6 @@ class SignalFunctions(Signal):
         # ax2.text(x=legend_x, y=0.95, s="1 pair", color=possibleColors["1"])
         # ax2.text(x=legend_x, y=0.9, s="2 pairs", color=possibleColors["2"])
         # ax2.text(x=legend_x, y=0.85, s="3 pairs", color=possibleColors["3"])
-
-        # Print hit-rate somewhere TODO: fix the "and False"
-        if other.signalObject.location_signal_peak and False:
-            for corr, _ in zip(hitrate_tables["pearson"],
-                               hitrate_tables["spearman"]):
-                ax2.text(
-                    x=legend_x + 10,
-                    y=float(corr),
-                    s=
-                    f"{float(hitrate_tables['pearson'][corr].values[0]):.0f}%",
-                    fontsize=14,
-                    color="black",
-                )
-
-                ax2.text(
-                    x=legend_x + 80,
-                    y=float(corr),
-                    s=
-                    f"{float(hitrate_tables['spearman'][corr].values[0]):.0f}%",
-                    fontsize=14,
-                    color="black",
-                )
 
         # Divide by 2 number of ticks and add 1 to the end
         corr_thr_new = []

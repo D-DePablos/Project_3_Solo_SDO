@@ -9,8 +9,9 @@ class LcurveManager:
         self,
         csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
         objCad=60,
+        wavelength=193,
     ):
-        Lc_csv = glob(f"{csvPath}complete_lcurves.csv")[0]
+        Lc_csv = glob(f"{csvPath}{wavelength}_complete_lcurves.csv")[0]
         self.df = pd.read_csv(Lc_csv)
         self.df.index = pd.to_datetime(self.df["Time"])
         del self.df["Time"]
