@@ -138,6 +138,7 @@ if __name__ == "__main__":
         csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
         objCad=objCad,
     )
+    # TODO : Check that lightcurves are correctly derived
     lc.df = lc.df.interpolate()  # Interpolate after forming lc object
     """
                                  16          17          18          21          22          23
