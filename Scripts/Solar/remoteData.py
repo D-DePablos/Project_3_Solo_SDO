@@ -149,6 +149,7 @@ class SDOAIAManager(RemoteManager):
         makedirs(self.path, exist_ok=True)
 
     def downloadData(self, force=False):
+        results = None
         if not force:
             try:
                 from glob import glob
@@ -159,12 +160,14 @@ class SDOAIAManager(RemoteManager):
                                       self.cadence, self.wavelength)
                 files = sorted(Fido.fetch(results, path=self.path))
 
+                print(results)
+
         elif force:
 
             results = Fido.search(self.attrsTime, self.instrument,
                                   self.cadence, self.wavelength)
 
-        print(results)
+            print(results)
         response = input(
             f"Would you like to download the above shown files into {self.path}?"
         )

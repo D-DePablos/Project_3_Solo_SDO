@@ -8,7 +8,6 @@ from astropy import units as u
 import pandas as pd
 
 from datetime import datetime, timedelta
-# TODO : Get most likely SDOAIA time for Solo conjunction
 # Get SolO data
 ssRadius = 2.5
 accFactor = 4 / 3
@@ -68,5 +67,3 @@ for index, date_AIA in enumerate(timeRange):
         savePath=savePath,
         index=index,
     )
-
-    # TODO Check that there is a coordinate conversion from Heliographic Carrington to SDOAIA coords

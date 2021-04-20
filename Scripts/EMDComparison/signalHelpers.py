@@ -18,7 +18,7 @@ from PyEMD import EMD, Visualisation  # This import works so let's just leave it
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib.dates as mdates
 from datetime import timedelta
-import pprint
+from copy import deepcopy
 
 # Quick fix for cross-package import
 
@@ -62,6 +62,7 @@ def emd_and_save(s, t, saveFolder, save_name, plot=False):
 
     try:
         imfs = np.load(saved_npy)
+        # print(f"loading imfs {saved_npy}")
         return imfs
     except FileNotFoundError:
         pass
@@ -76,7 +77,7 @@ def emd_and_save(s, t, saveFolder, save_name, plot=False):
         # plt.show()
 
     # Find relevant timeID
-    time_id = f"time_{t[0]:04d}-{t[-1]:04d}"
+    time_id = f"time_{t[0]:08d}-{t[-1]:08d}"
     np.save(f"{saveFolder}{time_id}.npy", t)
     np.save(saved_npy, imfs)  # Keeps noise as we can do filtering later
 
@@ -85,7 +86,7 @@ def emd_and_save(s, t, saveFolder, save_name, plot=False):
 
 def check_imf_periods(t,
                       imfs,
-                      filterPeriods=True,
+                      filterPeriods=False,
                       pmin=None,
                       pmax=None,
                       filter_low_high=(0, 0)):
@@ -98,8 +99,8 @@ def check_imf_periods(t,
                 f"pmin, pmax value not valid ({pmin}, {pmax}) if IMF number filtering is set to None"
             )
 
-    N = t[-1]
-
+    # Important to drop t to keep same N
+    N = t[-1] - t[0]
     Period_valid = np.ndarray((len(imfs), 2))
 
     if pmin is not None and filter_low_high == (0, 0):
@@ -509,7 +510,7 @@ class Signal:
 
         if len(self.data) != len(mask):
             mask = mask[:-1]
-        extent = np.count_nonzero(mask)
+        extent = np.height_nonzero(mask)
 
         # Create a gaussian to put inside masked array
         gaussian = scipy_sig.general_gaussian(M=extent, p=1, sig=std)
@@ -686,9 +687,9 @@ class SignalFunctions(Signal):
         self.path_to_corr_matrix = None
         self.windowDisp = None
 
-        self.hitrate = 0
+        self.hitrate = 0, 0
         self.table = None
-        self.no_displacements = None
+        self.no_displacements = 0
 
     def __str__(self):
         """
@@ -737,7 +738,7 @@ class SignalFunctions(Signal):
             useRealTime=False,
             filterPeriods=False,
             filter_low_high=(0, 0),
-            delete=False,
+            renormalize=False,
     ):
         """
         Generate array of relevant windows with two timeseries of different length
@@ -752,11 +753,6 @@ class SignalFunctions(Signal):
         long = other
 
         self.filter_low_high = filter_low_high
-        if delete:
-            from shutil import rmtree
-            rmtree(short.saveFolder, ignore_errors=True)
-            print(f"Delete {short.saveFolder}")
-
         self.path_to_signal = f"{short.saveFolder}Split_signal_all_IMFs.npy"
         self.path_to_corr_matrix = f"{short.saveFolder}IMF/Corr_matrix_all.npy"
         self.windowDisp = windowDisp
@@ -767,11 +763,12 @@ class SignalFunctions(Signal):
             s=short.s,
             t=short.t,
             saveFolder=f"{short.saveFolder}IMF/",
-            save_name=f"short_{short.t[0]:04d}_{short.t[-1]:04d}",
+            save_name=f"short_{short.t[0]:08d}_{short.t[-1]:08d}",
             plot=False,
         )
         self.imfs = short_imfs
 
+        # Find the valid IMFs on short signal
         if filterPeriods:
             valid_imfs_short = check_imf_periods(
                 imfs=short_imfs,
@@ -780,7 +777,8 @@ class SignalFunctions(Signal):
                 pmax=self.pmax,
                 filterPeriods=True,
             )
-        elif not filterPeriods:
+
+        else:
             valid_imfs_short = check_imf_periods(
                 imfs=short_imfs,
                 t=short.t,
@@ -812,7 +810,7 @@ class SignalFunctions(Signal):
             pass
 
         # Otherwise continue
-        count = 0
+        height = 0
         # Assume that two datasets are standardised
         complete_array = np.ndarray((3, short.no_displacements, len(short.s)))
 
@@ -829,29 +827,32 @@ class SignalFunctions(Signal):
         right_bound = short.t[-1]
 
         # While inside the long timeseries
-        while count < short.no_displacements:
+        while height < short.no_displacements:
             # Only do if necessary!
-            if (count in long_window_imf_list
+            if (height in long_window_imf_list
                     and plot_long_imfs) or (plot_long_imfs == False):
                 # Find and set relevant window
                 i = int(np.where(long.t == left_bound)[0])
                 j = int(np.where(long.t == right_bound)[0])
 
-                _data_long = long.s[i:j + 1]
+                # Make copies of data instead of using directly
+                _data_long = deepcopy(long.s[i:j + 1])
                 _data_long = _data_long.reshape(len(_data_long))
-                _time_long = long.t[i:j + 1]
+                _data_long = normalize_signal(
+                    _data_long) if renormalize else _data_long
+                _time_long = deepcopy(long.t[i:j + 1])
 
                 # Set values for array
-                complete_array[0, count, :] = _time_long
-                complete_array[1, count, :] = _data_long
-                complete_array[2, count, :] = short.s
+                complete_array[0, height, :] = _time_long
+                complete_array[1, height, :] = _data_long
+                complete_array[2, height, :] = deepcopy(short.s)
 
                 # Derive EMD and save to relevant folder
                 _long_imfs = emd_and_save(
                     s=_data_long,
                     t=_time_long,
                     saveFolder=f"{long.saveFolder}IMF/",
-                    save_name=f"long_{_time_long[0]:04d}_{_time_long[-1]:04d}",
+                    save_name=f"long_{_time_long[0]:08d}_{_time_long[-1]:08d}",
                     plot=False,
                 )
 
@@ -862,7 +863,7 @@ class SignalFunctions(Signal):
                         t=_time_long,
                         pmin=self.pmin,
                         pmax=self.pmax,
-                        filterPeriods=True,
+                        filterPeriods=filterPeriods,
                     )
 
                 else:
@@ -870,15 +871,15 @@ class SignalFunctions(Signal):
                         imfs=_long_imfs,
                         t=_time_long,
                         filter_low_high=filter_low_high,
-                        filterPeriods=False,
+                        filterPeriods=filterPeriods,
                     )
 
                 # If required to plot specific IMFs
-                if plot_long_imfs and count in long_window_imf_list:
+                if plot_long_imfs and height in long_window_imf_list:
                     __long_signal = Signal(
                         cadence=long.cadence,
                         custom_data=_data_long,
-                        name=f"{long.name} - Window #{count}",
+                        name=f"{long.name} - Window #{height}",
                         saveFolder="",
                         norm=False,
                     )
@@ -897,12 +898,12 @@ class SignalFunctions(Signal):
                     __long_sf.plot_emd_inst_freq(
                         ncols=2,
                         savepath=f"{long.saveFolder}IMFplots/",
-                        save_name=f"{count:03d}",
+                        save_name=f"{height:08d}",
                         with_residue=True,
                     )
 
                     print(
-                        f"Saved long IMF {count:03d} figures to {long.saveFolder}IMFplots/ \n"
+                        f"Saved long IMF {height:08d} figures to {long.saveFolder}IMFplots/ \n"
                     )
 
                 # For all of the short, long IMFs
@@ -915,23 +916,19 @@ class SignalFunctions(Signal):
                         else:
                             valid = 0
 
-                        if count == 0:
-                            # TODO: Add test to see whether normalised or not
-                            pass
-
                         # Contains pearsonR values, SpearmanR values, and validity
                         # Get the p value for each!
-                        corr_matrix[i, j, count, 0] = pearsonr(row, col)[0]
-                        corr_matrix[i, j, count, 1] = pearsonr(row, col)[1]
-                        corr_matrix[i, j, count, 2] = valid
+                        corr_matrix[i, j, height, 0] = pearsonr(row, col)[0]
+                        corr_matrix[i, j, height, 1] = pearsonr(row, col)[1]
+                        corr_matrix[i, j, height, 2] = valid
 
                 if useRealTime:  # We only have the real time in some ocasions
                     mid_point_time = np.floor(
                         (_time_long[-1] + _time_long[0]) / 2)
-                    corr_matrix[0, 0, count, 3] = mid_point_time
+                    corr_matrix[0, 0, height, 3] = mid_point_time
 
-            # Increase count by one before advancing
-            count += 1
+            # Increase height by one before advancing
+            height += 1
             left_bound, right_bound = (
                 left_bound + self.windowDisp,
                 right_bound + self.windowDisp,
@@ -1151,24 +1148,24 @@ class SignalFunctions(Signal):
             rvalid = spearman[valid == 1]
 
             # For all relevant correlation thresholds, depending on list
+            relevant_pearson_index = np.where(
+                corrThrPlotList == minCorrThrPlot)[0][0]
+
             for index, corr_thr in enumerate(corrThrPlotList):
                 _number_high_pe = len(pvalid[np.abs(pvalid) >= corr_thr])
                 corr_locations[height, index, 1] = _number_high_pe
                 _number_high_sp = len(rvalid[np.abs(rvalid) >= corr_thr])
                 corr_locations[height, index, 2] = _number_high_sp
 
-                if corr_thr == minCorrThrPlot:
-                    relevant_pearson_index = index
+                # TODO: If hit rate important, modify
+                # if other.signalObject.location_signal_peak:
+                #     if location == "inside":
+                #         pe_sp_pairs[height, index, 0] = _number_high_pe
+                #         pe_sp_pairs[height, index, 1] = _number_high_sp
 
-                # Hit rate
-                if other.signalObject.location_signal_peak:
-                    if location == "inside":
-                        pe_sp_pairs[height, index, 0] = _number_high_pe
-                        pe_sp_pairs[height, index, 1] = _number_high_sp
-
-                    else:
-                        pe_sp_pairs[height, index, 0] = -_number_high_pe
-                        pe_sp_pairs[height, index, 1] = -_number_high_sp
+                #     else:
+                #         pe_sp_pairs[height, index, 0] = -_number_high_pe
+                #         pe_sp_pairs[height, index, 1] = -_number_high_sp
 
             # Only generate heatmap when above threshold
             if plot_heatmaps and corr_locations[height, relevant_pearson_index,
@@ -1243,10 +1240,10 @@ class SignalFunctions(Signal):
                 # plt.title(f"Correlation matrix at window #{height} {time}")
 
                 if self.signalObject.location_signal_peak != []:
-                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:03d}_{time}_peak_at_{self.signalObject.location_signal_peak}.{self.saveformat}"
+                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:08d}_{time}_peak_at_{self.signalObject.location_signal_peak}.{self.saveformat}"
 
                 else:
-                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:03d}_{time}.{self.saveformat}"
+                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:08d}_{time}.{self.saveformat}"
 
                 plt.tight_layout(pad=0.001)
                 plt.savefig(fig_locn, bbox_inches="tight", dpi=300)
@@ -1274,10 +1271,10 @@ class SignalFunctions(Signal):
                 # plt.title(f"Correlation matrix at window #{height} {time}")
 
                 if self.signalObject.location_signal_peak != []:
-                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Pvalues{height:03d}_{time}_peak_at_{self.signalObject.location_signal_peak}.{self.saveformat}"
+                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Pvalues{height:08d}_{time}_peak_at_{self.signalObject.location_signal_peak}.{self.saveformat}"
 
                 else:
-                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Pvalues{height:03d}_{time}.{self.saveformat}"
+                    fig_locn = f"{self.saveFolder}corr_matrix/IMF_Pvalues{height:08d}_{time}.{self.saveformat}"
 
                 plt.tight_layout(pad=0.001)
                 plt.savefig(fig_locn, bbox_inches="tight", dpi=300)
@@ -1297,25 +1294,25 @@ class SignalFunctions(Signal):
                     plt.title(
                         f"Direct Pearson R correlation: {pearsonr(a, c)[0]:.2f}"
                     )
-                    save_to = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:03d}_{time}_plot.{self.saveformat}"
+                    save_to = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:08d}_{time}_plot.{self.saveformat}"
                     plt.savefig(save_to, bbox_inches="tight", dpi=300)
                     # plt.show()
                     plt.close()
 
                 create_ts_plot()
 
-        # Save the hitrates
-        if other.signalObject.location_signal_peak:
-            df_pe = pd.DataFrame({})
-            df_sp = pd.DataFrame({})
+        # # Save the hitrates
+        # if other.signalObject.location_signal_peak:
+        #     df_pe = pd.DataFrame({})
+        #     df_sp = pd.DataFrame({})
 
-            for index, corr_thr in enumerate(corrThrPlotList):
-                df_pe[f"{corr_thr}"] = pe_sp_pairs[:, index, 0]
-                df_sp[f"{corr_thr}"] = pe_sp_pairs[:, index, 1]
+        #     for index, corr_thr in enumerate(corrThrPlotList):
+        #         df_pe[f"{corr_thr}"] = pe_sp_pairs[:, index, 0]
+        #         df_sp[f"{corr_thr}"] = pe_sp_pairs[:, index, 1]
 
-            # Then have the hitrate information available
-            self.hitrate = (df_pe, df_sp)
-            hitrate_tables = self.calculate_hitrate(save=True)
+        #     # Then have the hitrate information available
+        #     self.hitrate = (df_pe, df_sp)
+        #     # hitrate_tables = self.calculate_hitrate(save=True)
 
         # Establish relevant signal Objects
         # SHORT
@@ -1379,7 +1376,6 @@ class SignalFunctions(Signal):
             xticks = np.arange(time_axis[0], time_axis[-1] + 1, step=180)
             plt.xticks(xticks)
 
-        # DONE: Change time_mid_min to be representative of real long_signal_time!
         if useRealTime:
             # Plot the hits
             try:
@@ -1392,7 +1388,6 @@ class SignalFunctions(Signal):
             ttindex = (true_time_secs / long_signal.cadence).astype(int)
             true_time_datetime = long_signal.true_time[ttindex]
             time_mid_min = true_time_datetime
-            # TODO : Fix the location of the green bars
             bar_width = short_duration
 
         else:
@@ -1412,7 +1407,7 @@ class SignalFunctions(Signal):
             ax2,
             width="15%",  # width = 30% of parent_bbox
             height=1,  # height : 1 inch
-            # loc="upper right",
+            loc="upper left",
         )
         in_ax.plot(short_time, short_values, color="black")
         in_ax.set_title(f"{region_string}")
@@ -1425,14 +1420,14 @@ class SignalFunctions(Signal):
         for height in range(len(time_mid_min)):
             # Open up pearson and spearman IMF pair list
             pearson_array = corr_locations[height, :, 1]
-            spearman_array = corr_locations[height, :, 2]
+            # spearman_array = corr_locations[height, :, 2]
 
             if useRealTime:
                 midpoint = corr_matrix[0, 0, height, 3]
                 midpoint_time = other.true_time[0] + timedelta(
                     seconds=midpoint)
                 time = midpoint_time
-                barchart_time = time
+                barchart_time = time.to_pydatetime()
 
             else:
                 midpoint = self.t[int(len(self.t) / 2)]
@@ -1443,12 +1438,14 @@ class SignalFunctions(Signal):
             # Bar charts for each of the heights
             for index, corr_label in enumerate(corrThrPlotList):
                 if pearson_array[index] != 0:  # If some pairs are found
+
                     try:
                         _color = possibleColors[f"{int(pearson_array[index])}"]
                     except KeyError:
                         _color = "red"
 
-                    _alpha = 0.35 if pearson_array[index] > 0 else 0
+                    # Bug with periodicity calculation. WTF
+                    _alpha = 0.35
                     ax2.bar(
                         barchart_time,
                         corr_label,
@@ -1460,12 +1457,17 @@ class SignalFunctions(Signal):
                     )
 
                 # if spearman_array[index] != 0:
-                #     _alpha = 0.9 if spearman_array[index] > 0 else 0
+                #     try:
+                #         _color = possibleColors[
+                #             f"{int(spearman_array[index])}"]
+                #     except KeyError:
+                #         _color = "red"
+                #     _alpha = 0.35 if spearman_array[index] > 0 else 0
                 #     ax2.bar(
                 #         barchart_time,
                 #         corr_label,
                 #         width=bar_width,
-                #         color="black",
+                #         color=_color,
                 #         edgecolor="white",
                 #         alpha=_alpha,
                 #         zorder=2,
@@ -1657,26 +1659,29 @@ def compareTS(
     detrend_box_width=200,
     delete=False,
     showFig=True,
+    renormalize=False,
 ):
     """
     This function takes two dataframes with variables sampled at the same rate, and performs EMD analysis on them
+    dfSelf is the dataframe of an object (Self)
+    dfOther is the dataframe of a different object (Self)
+    cadSelf, cadOther is cadence
+    labelOther = Which label to show for other dataset
     """
 
     assert savePath != None, "Please set savePath to store relevant arrays"
-
+    deleted_already = False
     # For all of the lightcurves
     for varOther in list(dfOther):
         otherPath = f"{savePath}{labelOther}/{varOther}/"
         makedirs(otherPath, exist_ok=True)
 
-        dataOther = dfOther[varOther]
         signalOther = Signal(
             cadence=cadOther,
-            custom_data=dataOther,
+            custom_data=dfOther[varOther],
             name=varOther,
             time=dfOther.index,
             saveFolder=otherPath,
-            detrend=True,
         )
 
         signalOther.detrend(box_width=detrend_box_width)
@@ -1713,12 +1718,18 @@ def compareTS(
                 otherSigFunc.saveFolder = otherWinFolder
                 selfSigFunc.saveFolder = selfWinFolder
 
+                if delete and not deleted_already:
+                    from shutil import rmtree
+                    print("Deleting otherSigFunc and selfSigFunc folders")
+                    rmtree(otherSigFunc.saveFolder, ignore_errors=True)
+                    rmtree(selfSigFunc.saveFolder, ignore_errors=True)
+
                 selfSigFunc.generate_windows(
                     other=otherSigFunc,
                     windowDisp=windowDisp,
                     useRealTime=useRealTime,
                     filterPeriods=filterPeriods,
-                    delete=delete,
+                    renormalize=renormalize,
                 )
                 selfSigFunc.plot_all_results(
                     other=otherSigFunc,
