@@ -11,7 +11,14 @@ class LcurveManager:
         objCad=60,
         wavelength=193,
     ):
-        Lc_csv = glob(f"{csvPath}{wavelength}_complete_lcurves.csv")[0]
+        """Manages getting lightcurves to correct format
+
+        Args:
+            csvPath (str, optional): Path to Lightcurve csv. Defaults to "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/".
+            objCad (int, optional): objective Cadence in seconds. Defaults to 60.
+            wavelength (int, optional): Wavelength to investigate. Defaults to 193.
+        """
+        Lc_csv = glob(f"{csvPath}complete_lcurves_{wavelength}.csv")[0]
         self.df = pd.read_csv(Lc_csv)
         self.df.index = pd.to_datetime(self.df["Time"])
         del self.df["Time"]

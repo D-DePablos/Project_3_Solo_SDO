@@ -82,11 +82,15 @@ class SoloManager:
         self.coordsCarrington = solo.coords.transform_to(
             frame=frames.HeliographicCarrington)
 
-    def backmapSun(self, ssRadius=2.5 * const.R_sun.to(u.km), accelerated=1):
+    def backmapSun(self,
+                   ssRadius=2.5 * const.R_sun.to(u.km),
+                   accelerated=1,
+                   modify_V="AV"):
         """
         Backmap to Source Surface and save seeds as self.seeds 
         :param ssRadius: Source surface Radius in meters
         :param accelerated: Acceleration factor. Is 4/3 in classic 1 AU
+        :param modify_V: default AV = AVERAGE. Can use LO and HI to use lowest, highest solar wind velocities in the hour. 
         """
         from datetime import timedelta
         from astropy.coordinates import SkyCoord

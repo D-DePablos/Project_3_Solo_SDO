@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 # Get SolO data
 ssRadius = 2.5
 accFactor = 4 / 3
+# accFactor = 1
 MARGINAIA, MARGINFLINE = 1, 1
 
 startSolo = datetime(2020, 5, 30, 12)
@@ -26,9 +27,11 @@ gongTime = (
 )
 
 # Set AIA date, possibly change it within loop?
-dateAIA = gongTimeStart  # - timedelta(days=1)
+# dateAIA = gongTimeStart  # - timedelta(days=1)
 
-solo = SoloManager(times=(startSolo, endSolo))
+# TODO: Use lowest, highest measured SW speed to calculate, other than average, time and location.
+# LIKELY to have to plot it alongside measured value (Add more legends? Add table?)
+solo = SoloManager(times=(startSolo, endSolo), objCad=60)
 gong = GONGManager(times=gongTime)
 aia = SDOAIAManager(times=("2020/5/26", "2020/5/28"))
 
@@ -45,7 +48,7 @@ seedTimes = pfss.traceFlines(seedtimes=pfss.dfseeds.index)
 # pfss.plotMG(seeds=pfss.seeds, flines=pfss.flines)
 
 # Overplot Field lines on SDOAIA map
-aia.downloadData()
+aia.downloadData(force=True)
 time_1 = (gongTimeStart - timedelta(hours=24))
 time_2 = (gongTimeStart + timedelta(hours=24))
 timeRange = [d for d in pd.date_range(time_1, time_2, freq="30M")]

@@ -150,6 +150,8 @@ class SDOAIAManager(RemoteManager):
 
     def downloadData(self, force=False):
         results = None
+        files = []
+
         if not force:
             try:
                 from glob import glob
@@ -168,19 +170,20 @@ class SDOAIAManager(RemoteManager):
                                   self.cadence, self.wavelength)
 
             print(results)
-        response = input(
-            f"Would you like to download the above shown files into {self.path}?"
-        )
-
-        if response.lower() == "y":
-            print(self.path)
-            files = sorted(Fido.fetch(results, path=self.path))
-
-        else:
-            raise ValueError(
-                f"{response} is not 'y' and files are not downloaded. Stopping"
+            response = input(
+                f"Would you like to download the above shown files into {self.path}?"
             )
 
+            if response.lower() == "y":
+                print(self.path)
+                files = sorted(Fido.fetch(results, path=self.path))
+
+            else:
+                raise ValueError(
+                    f"{response} is not 'y' and files are not downloaded. Stopping"
+                )
+
+        assert (len(files) > 0), "Files not working"
         fileTime = [
             datetime.strptime(file[-39:-20], "%Y_%m_%dt%H_%M_%S")
             for file in files

@@ -1,9 +1,6 @@
 """Helper functions"""
 from matplotlib import rc
-from os import makedirs, getcwd
-from os.path import isfile
-from sys import path
-import re
+from os import makedirs
 
 # import h5py
 import numpy as np
@@ -1662,12 +1659,26 @@ def compareTS(
     renormalize=False,
 ):
     """
-    This function takes two dataframes with variables sampled at the same rate, and performs EMD analysis on them
-    dfSelf is the dataframe of an object (Self)
-    dfOther is the dataframe of a different object (Self)
-    cadSelf, cadOther is cadence
-    labelOther = Which label to show for other dataset
-    """
+    Takes two dataframes sampled at same cadence
+    
+    dfSelf is a dataframe
+    dfOther is another dataFrame
+    cadSelf, cadOther for cadence
+    labelOther is the label to be shown on second dataset
+    
+    winDispList is a list of window displacements, in seconds
+    corrThrPlotList is 
+
+    
+    
+    
+    # """
+    # This function takes two dataframes with variables sampled at the same rate, and performs EMD analysis on them
+    # dfSelf is the dataframe of an object (Self)
+    # dfOther is the dataframe of a different object (Self)
+    # cadSelf, cadOther is cadence
+    # labelOther = Which label to show for other dataset
+    # """
 
     assert savePath != None, "Please set savePath to store relevant arrays"
     deleted_already = False

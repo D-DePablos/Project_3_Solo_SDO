@@ -68,7 +68,7 @@ def compareLCurvesToSolo(
         cadOther,
         labelOther=otherName,
         winDispList=[60],
-        corrThrPlotList=np.arange(0.4, 1, 0.05),
+        corrThrPlotList=np.arange(0.65, 1, 0.05),
         PeriodMinMax=PeriodMinMax,  # TODO : Figure out best period
         filterPeriods=filterPeriods,
         savePath=mainDir,
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     objCad = 60  # Objective cadence in seconds
 
-    DELETE = True
+    DELETE = False
     SHOWFIG = False
     FILTERP = True
     PERIODMINMAX = [3, 20]
@@ -128,7 +128,8 @@ if __name__ == "__main__":
         times=(start, end),
         objCad=objCad,
         cdfPath=
-        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/")
+        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
+    )
     solo.df = solo.df.interpolate()  # Fill gaps
     """
                                 V_R        V_T       V_N          N         T
@@ -176,7 +177,10 @@ if __name__ == "__main__":
         2020-05-28 10:45:00  386.551898  623.982588  672.670828  641.362444  665.743955  570.076031
     """
     # lcRegs = ["16"]
-    lcRegs = ["16", "17", "18", "21", "22", "23"]
+    lcRegs = [
+        "11", "12", "13", "16", "17", "18", "21", "22", "23",
+        "Summary_regions_11:13_21:23"
+    ]
 
     # Cadence setup
     selfCad = int(lc.df.index.freq.delta.total_seconds())
@@ -204,7 +208,7 @@ if __name__ == "__main__":
                 "color": "blue",
                 "label": "Acc.",
             },
-        ]
+        ],
     }
     # soloTimes should be 12:00
 
@@ -216,7 +220,7 @@ if __name__ == "__main__":
         "margin":
         1,
         "soloDurn":
-        6,
+        8,
         "relevantTimes": [
             {
                 "start": datetime(2020, 5, 31, 10),
@@ -225,35 +229,40 @@ if __name__ == "__main__":
                 "label": "Con",
             },
         ],
+        "label":
+        f"{WAVELENGTH}_Con"
     }
 
     # List of relevant times
     longSolOCase = {
         "AIATimes":
-        accCase["AIATimes"],
+        conCase["AIATimes"],
         "soloTimes":
         datetime(2020, 5, 30, 12, 0),
         "margin":
         1,
         "soloDurn":
         36,
-        "relevantTimes": [{
-            "start": soloCon[0],
-            "end": soloCon[1],
-            "color": "yellow",
-            "label": "Con",
-        }, {
-            "start": soloAcc[0],
-            "end": soloAcc[1],
-            "color": "blue",
-            "label": "Acc.",
-        }],
+        "relevantTimes": [
+            {
+                "start": soloCon[0],
+                "end": soloCon[1],
+                "color": "yellow",
+                "label": "Con",
+            },
+            {
+                "start": soloAcc[0],
+                "end": soloAcc[1],
+                "color": "blue",
+                "label": "Acc.",
+            },
+        ],
         "label":
-        f"{WAVELENGTH}_Acc_",
+        f"{WAVELENGTH}_Con",
     }
 
     # Select a case
-    selectedCase = longSolOCase
+    selectedCase = conCase
     aiaTimesList, soloTimesList = extractDatetimePairs(selectedCase,
                                                        soloTesting=False)
     # Invert N timeseries
@@ -262,8 +271,7 @@ if __name__ == "__main__":
     for aiaTimes in aiaTimesList:
         if len(soloTimesList) > 1:
             for soloTimes in soloTimesList:
-                dirName = f'''AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}
-                    SoloD{soloTimes[0].day}_H{soloTimes[0].hour}:D{soloTimes[0].day}_H{soloTimes[1].hour}'''
+                dirName = f"""AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}___________SoloD{soloTimes[0].day}_H{soloTimes[0].hour}:D{soloTimes[0].day}_H{soloTimes[1].hour}"""
 
                 compareLCurvesToSolo(
                     selfObj_Short=lc,
@@ -286,8 +294,7 @@ if __name__ == "__main__":
                 )
         else:
             soloTimes = soloTimesList[0]
-            dirName = f'''AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}
-                SoloD{soloTimes[0].day}_H{soloTimes[0].hour}:D{soloTimes[1].day}_H{soloTimes[1].hour}'''
+            dirName = f"""AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}___________SoloD{soloTimes[0].day}_H{soloTimes[0].hour}:D{soloTimes[1].day}_H{soloTimes[1].hour}"""
 
             compareLCurvesToSolo(
                 selfObj_Short=lc,
@@ -308,7 +315,3 @@ if __name__ == "__main__":
                 expectedLocationList=selectedCase["relevantTimes"],
                 renormalize=False,
             )
-
-            # TODO  : Add 211 and 94 Angstrom
-        # The tests only use one AIA time
-        # break
