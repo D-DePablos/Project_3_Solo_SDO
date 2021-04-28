@@ -42,6 +42,43 @@ def normalize_signal(s: np.ndarray):
     return s
 
 
+def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
+    """
+    Gives a corresponding velocity axis for a time axis and originTime
+
+    Args:
+        timeAxis: X axis with time values
+        originTime: Time that is to be compared (hour of AIA images)
+        SPCKernelName: Kernel name for spacecraft
+    """
+    import heliopy.data.spice as spicedata
+    import heliopy.spice as spice
+
+    if SPCKernelName == "solo":
+        spicedata.get_kernel("solo")
+        sp_traj = spice.Trajectory("Solar Orbiter")
+
+    elif SPCKernelName == "psp":
+
+        spicedata.get_kernel("psp")
+        sp_traj = spice.Trajectory("SPP")
+        pass
+
+    else:
+        raise ValueError(
+            f"{SPCKernelName} is not a valid spacecraft kernel, please choose one from ['solo'] "
+        )
+
+    times = list(timeAxis)
+    sp_traj.generate_positions(times, 'Sun', 'IAU_SUN')  # Is in Km
+    R = sp_traj.coords.radius.mean()
+
+    dtAxis = [(t - originTime).total_seconds() for t in timeAxis]
+    vSwAxis = R.value / dtAxis  # In km / s
+
+    return vSwAxis
+
+
 def emd_and_save(s, t, saveFolder, save_name, plot=False):
     """
     Generate ALL EMDs for a relevant timeseries and save them in a numpy file for later use
@@ -661,9 +698,9 @@ class SignalFunctions(Signal):
 
         if norm:
             print(f"Normalising {self.signalObject.name}")
-            self.s = normalize_signal(signal.data)
+            self.s = normalize_signal(signal.data.copy())
         else:
-            self.s = signal.data
+            self.s = signal.data.copy()
 
         self.t = signal.long_signal_time
         self.true_time = signal.true_time
@@ -813,11 +850,11 @@ class SignalFunctions(Signal):
 
         if not useRealTime:
             # generate 10 by 10 matrix for IMF correlation
-            corr_matrix = np.zeros(shape=(10, 10, short.no_displacements, 3))
+            corr_matrix = np.zeros(shape=(12, 12, short.no_displacements, 3))
 
         else:
             # When needed to save mid_point_time
-            corr_matrix = np.zeros(shape=(10, 10, short.no_displacements, 4))
+            corr_matrix = np.zeros(shape=(12, 12, short.no_displacements, 4))
 
         # Bounds to move window
         left_bound = short.t[0]
@@ -1043,20 +1080,21 @@ class SignalFunctions(Signal):
         print(f"Saved IMFs to {savepath} \n")
 
     def plot_all_results(
-        self,
-        other,
-        Label_long_ts="No name",
-        useRealTime=False,
-        expectedLocationList=False,
-        savePath=None,
-        plot_heatmaps=False,
-        minCorrThrPlot=0.7,
-        corrThrPlotList=np.arange(0.7, 1.01, 0.1),
-        margin_hours=0.5,
-        bar_width=1.2,
-        filterPeriods=True,
-        showFig=False,
-    ):
+            self,
+            other,
+            Label_long_ts="No name",
+            useRealTime=False,
+            expectedLocationList=False,
+            savePath=None,
+            plot_heatmaps=False,
+            minCorrThrPlot=0.7,
+            corrThrPlotList=np.arange(0.7, 1.01, 0.1),
+            margin_hours=0.5,
+            bar_width=1.2,
+            filterPeriods=True,
+            showFig=False,
+            showSpeed=True,  # Whether to show speed instead of time
+            SPCKernelName="solo"):
         """
         This function plots the number of IMFs with high correlation for all heights
         Takes signal objects.
@@ -1135,8 +1173,8 @@ class SignalFunctions(Signal):
             mask = ~np.isnan(pearson)
 
             # Maximum number of IMFs for each
-            wind_max = 10 - np.isnan(pearson[:, 0]).sum()
-            aia_max = 10 - np.isnan(pearson[0, :]).sum()
+            wind_max = 12 - np.isnan(pearson[:, 0]).sum()
+            aia_max = 12 - np.isnan(pearson[0, :]).sum()
 
             # wind_max_sp = 10 - np.isnan(spearman[:, 0]).sum()
             # aia_max_sp = 10 - np.isnan(spearman[0, :]).sum()
@@ -1321,6 +1359,8 @@ class SignalFunctions(Signal):
         # LONG
         long_signal = other
         long_values = long_signal.s
+        long_true_values = long_signal.base_signal
+        # long_true_values
 
         # window_width = max(short_time) * 12 / 60
 
@@ -1335,12 +1375,12 @@ class SignalFunctions(Signal):
         region_string = self.name
         #######################################
         # Figure
-        fig, axs = plt.subplots(2, sharex=True, figsize=(20, 10))
+        fig, axs = plt.subplots(2, figsize=(20, 10), sharex=True)
 
         # First plot
         ax = axs[0]
         ax.plot(time_axis,
-                long_values,
+                long_true_values,
                 color="black",
                 label=Label_long_ts,
                 alpha=1)
@@ -1355,7 +1395,7 @@ class SignalFunctions(Signal):
         else:
             raise ValueError("Please determine whether using period or not")
 
-        ax.set_ylabel(f"Normalised {Label_long_ts}")
+        ax.set_ylabel(f"{Label_long_ts}")
         if useRealTime:
             ax.set_xlim(
                 time_axis[0] - timedelta(hours=margin_hours),
@@ -1401,7 +1441,7 @@ class SignalFunctions(Signal):
 
         # if Label_long_ts == 'Mf': --> Just /inset and change to if True
         in_ax = inset_axes(
-            ax2,
+            ax,
             width="15%",  # width = 30% of parent_bbox
             height=1,  # height : 1 inch
             loc="upper left",
@@ -1504,7 +1544,7 @@ class SignalFunctions(Signal):
 
                     ax2.text(
                         x=start_expected + timedelta(minutes=15),
-                        y=1.05,
+                        y=0.95,
                         s=f"{label}",
                     )
 
@@ -1519,7 +1559,7 @@ class SignalFunctions(Signal):
         # ax2.text(x=legend_x, y=0.9, s="2 pairs", color=possibleColors["2"])
         # ax2.text(x=legend_x, y=0.85, s="3 pairs", color=possibleColors["3"])
 
-        # Divide by 2 number of ticks and add 1 to the end
+        # Divide by 2 number of ticks and add 1 as highest Corr
         corr_thr_new = []
         for i, value in enumerate(corrThrPlotList):
             if np.mod(i, 2) == 0:
@@ -1530,6 +1570,17 @@ class SignalFunctions(Signal):
         ax2.set_ylim(corrThrPlotList[0], 1.01)  # Allows for any correlation
         ax2.set_ylabel("Highest corr. found")
 
+        if showSpeed:
+            # Extract the Velocities
+            vSWAxis = transformTimeAxistoVelocity(
+                time_axis,
+                originTime=short_signal.true_time.mean().to_pydatetime(),
+                SPCKernelName=SPCKernelName)
+
+            axV = ax2.twiny()
+            axV.plot(vSWAxis, long_values, alpha=0)
+            axV.set_title("Implied Vsw (km/s)")
+
         ax2.grid(True)
 
         if useRealTime:
@@ -1539,6 +1590,7 @@ class SignalFunctions(Signal):
 
         # Save, show and close
         save_name = f"{long_signal.name}_{region_string}_IMF_Summary"
+        plt.tight_layout()
         plt.savefig(
             f"{self.saveFolder}{save_name}.{self.saveformat}",
             dpi=300,
@@ -1657,6 +1709,8 @@ def compareTS(
     delete=False,
     showFig=True,
     renormalize=False,
+    showSpeed=False,
+    SPCKernelName="solo",
 ):
     """
     Takes two dataframes sampled at same cadence
@@ -1753,6 +1807,8 @@ def compareTS(
                     useRealTime=useRealTime,
                     expectedLocationList=expectedLocationList,
                     showFig=showFig,
+                    showSpeed=showSpeed,
+                    SPCKernelName=SPCKernelName,
                 )
 
 

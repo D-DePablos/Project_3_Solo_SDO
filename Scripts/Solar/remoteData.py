@@ -59,7 +59,7 @@ class RemoteManager:
         Pass a map, optionally field lines and another map projected on top
         """
         import matplotlib.pyplot as plt
-        plt.figure()
+        plt.figure(figsize=(8, 8))
         ax = plt.subplot(1, 1, 1, projection=map)
         map.plot(ax)
 
@@ -103,6 +103,8 @@ class RemoteManager:
                 title = title + f"| flines (SPC time) -> Margin {margin} hours vs AIA"
                 f.close()
 
+        plt.xlim(2200, 3800)
+        plt.ylim(2200, 3800)
         ax.set_title(title)
         plt.savefig(
             f"{kwargs['savePath']}AIA{int(map.wavelength.value)}{map.date.datetime.strftime('%Y-%m-%d_%H-%M')}.png"
@@ -169,21 +171,9 @@ class SDOAIAManager(RemoteManager):
             results = Fido.search(self.attrsTime, self.instrument,
                                   self.cadence, self.wavelength)
 
-            print(results)
-            response = input(
-                f"Would you like to download the above shown files into {self.path}?"
-            )
+            files = sorted(Fido.fetch(results, path=self.path))
 
-            if response.lower() == "y":
-                print(self.path)
-                files = sorted(Fido.fetch(results, path=self.path))
-
-            else:
-                raise ValueError(
-                    f"{response} is not 'y' and files are not downloaded. Stopping"
-                )
-
-        assert (len(files) > 0), "Files not working"
+        assert (len(files) > 0), "Fits files for given params. not found"
         fileTime = [
             datetime.strptime(file[-39:-20], "%Y_%m_%dt%H_%M_%S")
             for file in files

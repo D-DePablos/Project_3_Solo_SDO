@@ -91,7 +91,7 @@ def extractDatetimePairs(Case, soloTesting=False):
 
     for margin in range(-aiaMargin, aiaMargin + 1):
         aiaStart = Case["AIATimes"] + timedelta(hours=margin)
-        aiaEnd = aiaStart + timedelta(hours=Case["margin"])
+        aiaEnd = aiaStart + timedelta(hours=1)
         aiaTimes.append((aiaStart, aiaEnd))
 
     if soloTesting:
@@ -113,16 +113,17 @@ if __name__ == "__main__":
     from astropy import constants as const
     from astropy import units as u
 
-    objCad = 60  # Objective cadence in seconds
+    objCad = 60  # Objective cadence in seconds for comparisons
 
     DELETE = False
     SHOWFIG = False
     FILTERP = True
     PERIODMINMAX = [3, 20]
-    WAVELENGTH = 193
+    WAVELENGTH = 94
+    SOLOHI, SOLOLO, MEAN = 285, 255, 271
 
     # Solar Orbiter Data requires start, end
-    start = datetime(2020, 5, 30, 12)
+    start = datetime(2020, 5, 30, 23)
     end = datetime(2020, 6, 1)
     solo = SoloManager(
         times=(start, end),
@@ -150,8 +151,9 @@ if __name__ == "__main__":
     Vx = (solo.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
     mp = const.m_p
     N = (solo.df["N"].values * (u.cm**(-3))).to(u.m**(-3))
-
     solo.df["Mf"] = (N * mp * Vx).value
+
+    # Variables in situ
     soloVars = ["N", "T", "V_R", "Mf"]
 
     # Light Curves
@@ -160,7 +162,7 @@ if __name__ == "__main__":
         objCad=objCad,
         wavelength=WAVELENGTH,
     )
-    # lc.df = lc.df.interpolate()  # Interpolate after forming lc object
+    lc.df = lc.df.interpolate()  # Interpolate after forming lc object
     """
                                  16          17          18          21          22          23
         Time                                                                                       
@@ -233,36 +235,18 @@ if __name__ == "__main__":
         f"{WAVELENGTH}_Con"
     }
 
-    # List of relevant times
-    longSolOCase = {
-        "AIATimes":
-        conCase["AIATimes"],
-        "soloTimes":
-        datetime(2020, 5, 30, 12, 0),
-        "margin":
-        1,
-        "soloDurn":
-        36,
-        "relevantTimes": [
-            {
-                "start": soloCon[0],
-                "end": soloCon[1],
-                "color": "yellow",
-                "label": "Con",
-            },
-            {
-                "start": soloAcc[0],
-                "end": soloAcc[1],
-                "color": "blue",
-                "label": "Acc.",
-            },
-        ],
-        "label":
-        f"{WAVELENGTH}_Con",
+    # Relevant times actually change. Could be good to show minimum and maximum SolO speeds?
+    multiAIACase = {
+        "AIATimes": datetime(2020, 5, 28, 2),
+        "soloTimes": datetime(2020, 5, 31, 0, 0),
+        "margin": 7,
+        "soloDurn": 24,
+        "relevantTimes": [],
+        "label": f"{WAVELENGTH}_R",
     }
 
     # Select a case
-    selectedCase = conCase
+    selectedCase = multiAIACase
     aiaTimesList, soloTimesList = extractDatetimePairs(selectedCase,
                                                        soloTesting=False)
     # Invert N timeseries

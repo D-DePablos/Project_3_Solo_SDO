@@ -85,7 +85,7 @@ class SoloManager:
     def backmapSun(self,
                    ssRadius=2.5 * const.R_sun.to(u.km),
                    accelerated=1,
-                   modify_V="AV"):
+                   customSpeed=None):
         """
         Backmap to Source Surface and save seeds as self.seeds 
         :param ssRadius: Source surface Radius in meters
@@ -97,7 +97,9 @@ class SoloManager:
         flineCoordsList = []
 
         for i, coord in enumerate(self.coordsCarrington):
-            vSW = self.df["V_R"][i]
+            # Need to set different vSW here
+            vSW = self.df["V_R"][i] if customSpeed is None else customSpeed
+
             lon, lat, r = coord.lon, coord.lat, coord.radius
             dt = accelerated * ((r - ssRadius) / (vSW * u.km / u.s)).value
             timeSPC = coord.obstime.value
@@ -121,9 +123,22 @@ class SoloManager:
                                    frame="heliographic_carrington")
             flineCoordsList.append(flineCoords)
 
+        self.customSpeed = customSpeed
         self.flineCoordsList = flineCoordsList
         self.SSFootPoints = [coord[-1] for coord in flineCoordsList]
         self.sourcePointsSPC = self.coordsCarrington.obstime
+
+    def plot(self, savePath):
+        """Plots the Solar Orbiter observations and saves to savePath
+        """
+
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(12, 8))
+        plt.scatter(self.df.index, self.df["V_R"], color="black", marker="x")
+        plt.xlabel("Time")
+        plt.ylabel("Vx [km/s]")
+        plt.savefig(f"{savePath}insitu_data.png")
+        plt.close()
 
 
 if __name__ == "__main__":

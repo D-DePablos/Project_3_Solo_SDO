@@ -10,8 +10,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 # Get SolO data
 ssRadius = 2.5
-accFactor = 4 / 3
-# accFactor = 1
+# accFactor = 4 / 3
+accFactor = 1
 MARGINAIA, MARGINFLINE = 1, 1
 
 startSolo = datetime(2020, 5, 30, 12)
@@ -29,15 +29,18 @@ gongTime = (
 # Set AIA date, possibly change it within loop?
 # dateAIA = gongTimeStart  # - timedelta(days=1)
 
-# TODO: Use lowest, highest measured SW speed to calculate, other than average, time and location.
-# LIKELY to have to plot it alongside measured value (Add more legends? Add table?)
-solo = SoloManager(times=(startSolo, endSolo), objCad=60)
+# Choose HI. LO. Or measured for vSW
+SOLOHI, SOLOLO, MEASURED = (285, 255, None)
+CUSTOMSPEED = SOLOHI
+solo = SoloManager(times=(startSolo, endSolo), objCad=3600)
 gong = GONGManager(times=gongTime)
-aia = SDOAIAManager(times=("2020/5/26", "2020/5/28"))
+aia = SDOAIAManager(
+    times=("2020/5/26",
+           "2020/5/28"))  # Default times to download and prep. AIA files
 
 # Extract orbit and backmap to Sun
 solo.extractSolOrbit()
-solo.backmapSun(accelerated=accFactor)
+solo.backmapSun(accelerated=accFactor, customSpeed=CUSTOMSPEED)
 # print(solo.SSFootPoints)
 
 # Start up PFSS and track field lines
@@ -48,11 +51,21 @@ seedTimes = pfss.traceFlines(seedtimes=pfss.dfseeds.index)
 # pfss.plotMG(seeds=pfss.seeds, flines=pfss.flines)
 
 # Overplot Field lines on SDOAIA map
-aia.downloadData(force=True)
+aia.downloadData()
 time_1 = (gongTimeStart - timedelta(hours=24))
 time_2 = (gongTimeStart + timedelta(hours=24))
-timeRange = [d for d in pd.date_range(time_1, time_2, freq="30M")]
-savePath = f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/logsCoords/{accFactor:.2f}/"
+timeRange = [d for d in pd.date_range(time_1, time_2, freq="1h")]
+
+#DONE: Add plot of the solo data
+if CUSTOMSPEED == None:
+    spPath = ""
+    savePath = f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/logsCoords/{accFactor:.2f}/{spPath}"
+    solo.plot(savePath=savePath)  # Plot only if not using custom speed
+
+else:
+    spPath = f"Speed_{CUSTOMSPEED}kms/"
+    savePath = f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/logsCoords/{accFactor:.2f}/{spPath}"
+
 makedirs(savePath, exist_ok=True)
 
 for index, date_AIA in enumerate(timeRange):
@@ -62,7 +75,7 @@ for index, date_AIA in enumerate(timeRange):
     aiaMap = aia.aiaprep(aiaFile.file)
     aia.plot(
         aiaMap,
-        title=f"SDO AIA 193 {aiaMap.date.datetime.strftime('%m-%d %H:%M')}",
+        title=f"SDO AIA 93 {aiaMap.date.datetime.strftime('%m-%d %H:%M')}",
         margin=MARGINFLINE,
         flines=pfss.flines,
         flineTimes=seedTimes,
