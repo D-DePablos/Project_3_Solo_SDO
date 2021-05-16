@@ -36,7 +36,7 @@ class SoloManager:
                 'T'
             ] 
         """
-
+        _swe_df = None
         # Must download myself!
         for index, file in enumerate(sorted(glob(f"{cdfPath}*.cdf"))):
             cdf = cdflib.CDF(file)
@@ -55,7 +55,7 @@ class SoloManager:
             # Join the dataframes only after the first instance
             if index == 0:
                 _swe_df = _df
-            else:
+            elif index > 0:
                 _swe_df = _swe_df.append(_df)
 
         # Mask values outside of times to nan

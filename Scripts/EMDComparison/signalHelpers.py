@@ -14,16 +14,21 @@ import matplotlib
 from PyEMD import EMD, Visualisation  # This import works so let's just leave it
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib.dates as mdates
+import matplotlib.gridspec as gridspec
 from datetime import timedelta
 from copy import deepcopy
+from glob import glob
+from collections import namedtuple
 
 # Quick fix for cross-package import
 
 emd = EMD()
 vis = Visualisation()
 
-font = {"family": "DejaVu Sans", "weight": "normal", "size": 25}
-rc("font", **font)
+WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
+
+# font = {"family": "DejaVu Sans", "weight": "normal", "size": 25}
+# rc("font", **font)
 
 
 # Local helper functions
@@ -1862,6 +1867,125 @@ def compareTS(
                     HISPEED=HISPEED,
                     ffactor=4 / 3,
                 )
+
+
+def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
+    """
+    This new plot format requires rest of plots to have been made and correlations calculated!
+
+    lcDic contains each of the relevant wavelengths and its dataframe
+    """
+    def collect_dfs_npys(isDf,
+                         lcDic,
+                         region,
+                         base_folder,
+                         windDisp="60s",
+                         period="3 - 20"):
+        def _find_corr_mat(
+                region="chole",
+                wvl=193,
+                insituDF=None,
+                _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
+                windDisp="60s",
+                period="3 - 20"):
+            """Finds correlation matrices for all In-situ variables and a given wavelength
+
+            Args:
+                region (str): Which remote sensing region to explore
+                wvl (int): Which wavelength is relevant
+                insituParams (list): In situ parameters to find correlation matrices for
+            """
+            resultingMatrices = {}
+            matrixData = namedtuple("data",
+                                    "isData corrMatrix shortData shortTime")
+            # TODO: Fix Summary_regions!
+            for isparam in insituDF.columns:
+                # How do we get in situ data? From above function!
+                _subfolder = f"{_base_folder}{wvl}_{region}/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
+                foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
+                short_D = glob(f"{_subfolder}IMF/short*.npy")
+                short_T = glob(f"{_subfolder}IMF/time*.npy")
+                resultingMatrices[f"{isparam}"] = matrixData(
+                    insituDF[f"{isparam}"], np.load(foundMatrix[0]),
+                    np.load(short_D[0]), np.load(short_T[0]))
+
+            return resultingMatrices
+
+        expandedWvlDic = {}
+        # Select the correlation matrix for each insituObject variable, given region, given lcurve
+        for wvl in lcDic:
+            # dataContainer should have all
+            dataContainer = _find_corr_mat(wvl=wvl,
+                                           insituDF=isDf,
+                                           _base_folder=base_folder,
+                                           region=region,
+                                           windDisp=windDisp,
+                                           period=period)
+
+            #namedtuple("data", "isData corrMatrix shortData shortTime")
+            expandedWvlDic[f"{wvl}"] = dataContainer
+        return expandedWvlDic
+
+    # Such that each of the regions has a respective expandedWvlDic
+    regionDic = {}
+    for region in regions:
+        expandedWvlDic = collect_dfs_npys(
+            region=region,
+            isDf=dfInsitu,
+            lcDic=lcDic,
+            base_folder=base_folder,
+            period=period,
+        )
+        regionDic[region] = expandedWvlDic
+    
+    # Separate by regions
+    for region in regionDic:
+        # Below is how you pull vars. Can use "isData corrMatrix shortData shortTime"
+        # regionDic[f"{region}"]["94"]["N"].isData
+        r = regionDic[f"{region}"]
+
+        # Extract the WVL and IS params
+        wvlList = list(r.keys())
+        n_wvl = len(wvlList)
+        insituList = list(r[f"{wvlList[0]}"].keys())
+        n_insitu = len(insituList)
+
+        nplots = n_wvl if n_wvl >= n_insitu else n_insitu
+        fig = plt.figure(figsize=(20, 8))
+        gs = gridspec.GridSpec(nplots, 2, width_ratios=[4, 1])
+
+        i, j = 0, 0
+        for i, isVar in enumerate(insituList):
+            # TODO: Add results bar
+            isTuple = r[f"{wvlList[0]}"][f"{isVar}"]
+            plt.subplot(gs[i, 0])
+            plt.plot(isTuple.isData, color="black")
+            plt.ylabel(isVar)
+            if i == 0:
+                plt.title(region)
+
+        for j, wvl in enumerate(wvlList):
+            wvlTime = r[f"{wvl}"][f"{insituList[0]}"].shortTime
+            wvlEMD = r[f"{wvl}"][f"{insituList[0]}"].shortData
+            plt.subplot(gs[j, 1])
+            plt.plot(wvlTime, wvlEMD[0], color=WVLColours[f"{wvl}"])
+            for wvlemd in wvlEMD[1:]:
+                plt.plot(wvlTime, wvlemd, color="black", alpha = 0.22)
+
+        # # Delete remaining axes
+        # if i > j:
+        #     for n in range(i - j):
+        #         fig.delaxes(axs[i - n, 1])
+        # else:
+        #     for n in range(j - i):
+        #         fig.delaxes(axs[j - n, 0])
+
+        # TODO: Need to add green bars on top of insitu
+        # TODO: Need to add EMD to Lcurves if required
+        plt.show()
+        
+        # Save the plot somewhere
+        pass
 
 
 def plot_variables(df, BOXWIDTH=200):
