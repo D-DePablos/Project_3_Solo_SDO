@@ -10,6 +10,89 @@ import numpy as np
 from datetime import datetime, timedelta
 from Solar.LcurveData import LcurveManager
 from Plasma.SoloData import SoloManager
+from astropy import constants as const
+from astropy import units as u
+
+
+def plot_all(
+    soloTimes,
+    solo,
+    soloVars,
+    lcTimes,
+    lc94,
+    lc193,
+    lc211,
+    regions,
+):
+    # First get all dataframes with good column names and copped to relTimes
+    dfsolo = solo.df[soloVars]
+    dfsolo.columns = [f"SolO_{i}" for i in soloVars]  # Rename the columns
+    dfsolo = dfsolo[soloTimes[0]:soloTimes[1]]
+
+    # Construct lc dictionary + rename lcurves
+    lcDic = {}
+    for lcObj, _wvl in zip((lc94, lc193, lc211), ("94", "193", "211")):
+        lcObj.df = lcObj.df[regions]
+        lcObj.df.columns = [f"{_wvl}_{i}" for i in regions]
+        lcObj.df = lcObj.df[lcTimes[0]:lcTimes[1]]
+        lcDic[_wvl] = lcObj.df
+
+    # The new plot format overplots coloured columns (depending on wavelength) on top of SolO observations
+    # It then shows the 3 lightcurves with extracted IMFs
+    # This makes the ~11 panel figure a 7 panel figure!
+    """
+    Collect remote, collect in situ
+    
+    Select a region
+    
+    For all wavelengths, collect all of the correlation matrices
+    
+    """
+
+    # TODO: Complete this!
+    def construct_plot(dfsolo, lcDic, region):
+        from glob import glob
+
+        def _find_corr_mat(
+                region,
+                wvl,
+                insituParams,
+                _base_folder="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/ISSI/SB_6789/",
+                windDisp="60s",
+                period="5 - 20"):
+            """Finds correlation matrices for all In-situ variables and a given wavelength
+
+            Args:
+                region (str): Which remote sensing region to explore
+                wvl (int): Which wavelength is relevant
+                insituParams (list): In situ parameters to find correlation matrices for
+            """
+
+            resultingMatrices = {}
+            for isparam in insituParams:
+                # TODO: Need to set this to load in the specific Corr_matrix, short signal and time
+                _subfolder = f"{_base_folder}{wvl}_{region}/*{isparam}/{windDisp}/{period}/"
+                foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
+                short_D = glob(f"{_subfolder}IMF/short*.npy")
+                short_T = glob(f"{_subfolder}IMF/time*.npy")
+                resultingMatrices["isparam"] = foundMatrix
+
+        # Select the correlation matrix for each solo variable, given region, given lcurve
+
+        for wvl in lcDic:
+            # _find_corr_mat()
+
+        pass
+
+    # Each of the times are selected above
+    for region in regions:
+        construct_plot(
+            dfsolo,
+            lcDic,
+            region,
+        )
+
+        pass
 
 
 # Import the following functions into the AnySpacecraft_data script
@@ -32,12 +115,19 @@ def compareLCurvesToSolo(
     showFig=True,
     renormalize=False,
     DETREND_BOX_WIDTH=None,
+    SOLOHI=None,
+    SOLOLO=None,
+    plot_all_together=False,
 ):
     """
     Feed in the PSP Spacecraft and SolOSpc object
     Self is expected to be solar orbiter
     Other is expected to be the lcurves
     """
+
+    assert SOLOHI != None, "No High speed set"
+    assert SOLOLO != None, "No Low speed set"
+
     # Set header of directories
     general_directory = f"{BASE_PATH}unsafe/EMD_Data/"
     makedirs(general_directory, exist_ok=True)
@@ -69,7 +159,7 @@ def compareLCurvesToSolo(
         labelOther=otherName,
         winDispList=[60],
         corrThrPlotList=np.arange(0.65, 1, 0.05),
-        PeriodMinMax=PeriodMinMax,  # TODO : Figure out best period
+        PeriodMinMax=PeriodMinMax,
         filterPeriods=filterPeriods,
         savePath=mainDir,
         useRealTime=True,
@@ -78,193 +168,169 @@ def compareLCurvesToSolo(
         delete=delete,
         showFig=showFig,
         renormalize=renormalize,
+        showSpeed=True,
+        LOSPEED=SOLOHI,
+        HISPEED=SOLOLO,
     )
 
 
-def extractDatetimePairs(Case, soloTesting=False):
-    """
-    For a given dictionary, create a list of datetime pairs for SolO and AIA
-    """
+def extractDiscreteExamples(Caselist, margin, AIAduration=1):
+    """Extracts disxrete AIA - SolO pairs
 
-    aiaMargin = Case["margin"]
-    aiaTimes, soloTimes = [], []
+    Args:
+        Caselist ([type]): [description]
+        margin ([type]): [description]
+        AIAduration (int, optional): [description]. Defaults to 1.
+        noColumns (bool, optional): Whether to skip plotting backmapped time columns
+    """
+    def _constructExpectedLocation(_times, _color="blue", _label="BBMatch"):
+        """Construct the Expected Location dic
 
-    for margin in range(-aiaMargin, aiaMargin + 1):
-        aiaStart = Case["AIATimes"] + timedelta(hours=margin)
-        aiaEnd = aiaStart + timedelta(hours=1)
+        Args:
+            _times ([type]): Tuple of two datetimes, start and end
+            _color (str, optional): [description]. Defaults to "orange".
+            label (str, optional): [description]. Defaults to "BBMatch".
+
+        Returns:
+            Dictionary with proper formatting
+        """
+
+        return {
+            "start": _times[0],
+            "end": _times[1],
+            "color": _color,
+            "label": _label
+        }
+
+    aiaTimes = []
+    matchTimes = []
+    soloTimes = []
+    caseNames = []
+    refLocations = []
+
+    # Open each of the list dictionaries
+    for case in Caselist:
+        # Get the AIA start and end
+        aiaStart = case["aiaTime"]
+        aiaEnd = aiaStart + timedelta(hours=AIAduration)
         aiaTimes.append((aiaStart, aiaEnd))
 
-    if soloTesting:
-        for margin in range(0, Case["soloDurn"]):
-            soloStart = Case["soloTimes"] + timedelta(hours=margin)
-            soloEnd = soloStart + timedelta(hours=Case["soloDurn"])
-            soloTimes.append((soloStart, soloEnd))
+        # Get the match, which is used for reference later
+        matchStart = case["matchTime"]
 
-    else:
-        soloStart = Case["soloTimes"]
-        soloEnd = soloStart + timedelta(hours=Case["soloDurn"])
+        # SoloDurn gives reference to amount of SolO datapoints that match
+        matchEnd = matchStart + timedelta(hours=case["soloDurn"])
+        matchAvg = matchStart + (matchEnd - matchStart) / 2
+        matchTimes.append((matchStart, matchEnd))
+
+        # Get the Solar Orbiter measurements
+        soloStart = matchAvg - timedelta(hours=margin)
+        soloEnd = matchAvg + timedelta(hours=margin)
         soloTimes.append((soloStart, soloEnd))
 
-    return aiaTimes, soloTimes
+        # Get the specific case Name
+        caseNames.append(case["caseName"])
+
+        refLocations.append(
+            _constructExpectedLocation(_times=(matchStart, matchEnd)))
+
+    return aiaTimes, soloTimes, caseNames, refLocations
 
 
 if __name__ == "__main__":
-    # import matplotlib.pyplot as plt
-    from astropy import constants as const
-    from astropy import units as u
-
     objCad = 60  # Objective cadence in seconds for comparisons
 
     DELETE = False
-    SHOWFIG = False
+    SHOWFIG = True
     FILTERP = True
+    PLOT_ALL_TOGETHER = True
+    accelerated = 1
+    # accelerated = 4 / 3
     PERIODMINMAX = [3, 20]
-    WAVELENGTH = 94
-    SOLOHI, SOLOLO, MEAN = 285, 255, 271
 
-    # Solar Orbiter Data requires start, end
-    start = datetime(2020, 5, 30, 23)
-    end = datetime(2020, 6, 1)
-    solo = SoloManager(
-        times=(start, end),
-        objCad=objCad,
-        cdfPath=
-        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
-    )
-    solo.df = solo.df.interpolate()  # Fill gaps
-    """
-                                V_R        V_T       V_N          N         T
-        2020-05-30 12:00:00  274.279297 -20.320356 -5.449193  43.087570  1.601013
-        2020-05-30 12:01:00  274.317902 -20.294191 -5.402593  43.328201  1.592807
-        2020-05-30 12:02:00  274.356537 -20.268026 -5.355993  43.568836  1.584601
-        2020-05-30 12:03:00  274.395142 -20.241861 -5.309393  43.809467  1.576395
-        2020-05-30 12:04:00  274.433746 -20.215696 -5.262794  44.050102  1.568189
-        ...                         ...        ...       ...        ...       ...
-        2020-05-31 22:56:00  273.647736 -45.103485 -4.894425  59.370270  2.708913
-        2020-05-31 22:57:00  273.763336 -44.869247 -4.896916  59.102261  2.712214
-        2020-05-31 22:58:00  273.878967 -44.635010 -4.899406  58.834251  2.715516
-        2020-05-31 22:59:00  273.994568 -44.400772 -4.901897  58.566242  2.718817
-        2020-05-31 23:00:00  274.110168 -44.166534 -4.904387  58.298233  2.722118
-    """
+    for wv in [94, 193, 211]:
+        WAVELENGTH = wv
 
-    # Calculate mass flux
-    Vx = (solo.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
-    mp = const.m_p
-    N = (solo.df["N"].values * (u.cm**(-3))).to(u.m**(-3))
-    solo.df["Mf"] = (N * mp * Vx).value
+        # Solar Orbiter Data requires start, end
+        start = datetime(2020, 5, 30, 12)
+        end = datetime(2020, 6, 2)
+        solo = SoloManager(
+            times=(start, end),
+            objCad=objCad,
+            cdfPath=
+            "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
+        )
+        solo.df = solo.df.interpolate()  # Fill gaps
+        # Velocities are modified with 4/3 factor. Gives slightly better idea
+        SOLOHI, SOLOLO, MEAN = (int(solo.df["V_R"].max() / accelerated),
+                                int(solo.df["V_R"].min() / accelerated),
+                                int(solo.df["V_R"].mean() / accelerated))
+        """
+                                    V_R        V_T       V_N          N         T
+            2020-05-30 12:00:00  274.279297 -20.320356 -5.449193  43.087570  1.601013
+            ...                         ...        ...       ...        ...       ...
+            2020-05-31 23:00:00  274.110168 -44.166534 -4.904387  58.298233  2.722118
+        """
 
-    # Variables in situ
-    soloVars = ["N", "T", "V_R", "Mf"]
+        # Calculate mass flux
+        Vx = (solo.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
+        mp = const.m_p
+        N = (solo.df["N"].values * (u.cm**(-3))).to(u.m**(-3))
+        solo.df["Mf"] = (N * mp * Vx).value
 
-    # Light Curves
-    lc = LcurveManager(
-        csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
-        objCad=objCad,
-        wavelength=WAVELENGTH,
-    )
-    lc.df = lc.df.interpolate()  # Interpolate after forming lc object
-    """
-                                 16          17          18          21          22          23
-        Time                                                                                       
-        2020-05-27 00:00:00  329.801805  607.425191  613.393714  621.675743  720.785361  623.828448
-        2020-05-27 00:01:00  326.327427  604.308078  614.007916  618.429190  718.380477  621.880857
-        2020-05-27 00:02:00  325.820149  605.108373  614.363865  615.858402  717.268210  625.081203
-        2020-05-27 00:03:00  324.287363  605.050359  614.706581  612.511004  717.981663  627.441994
-        2020-05-27 00:04:00  324.318297  605.238100  615.577086  611.048792  717.956587  628.376957
-        ...                         ...         ...         ...         ...         ...         ...
-        2020-05-28 10:41:00  381.538028  618.639577  664.715820  637.554964  661.129843  574.473581
-        2020-05-28 10:42:00  382.460766  617.707741  664.790350  637.610576  658.359670  572.943388
-        2020-05-28 10:43:00  384.760020  618.726230  667.828106  639.802201  660.028347  571.286007
-        2020-05-28 10:44:00  387.059273  619.744718  670.865861  641.993826  661.697023  569.628625
-        2020-05-28 10:45:00  386.551898  623.982588  672.670828  641.362444  665.743955  570.076031
-    """
-    # lcRegs = ["16"]
-    lcRegs = [
-        "11", "12", "13", "16", "17", "18", "21", "22", "23",
-        "Summary_regions_11:13_21:23"
-    ]
+        # Variables in situ
+        soloVars = ["N", "T", "V_R", "Mf"]
+        # soloVars = ["V_R"]
 
-    # Cadence setup
-    selfCad = int(lc.df.index.freq.delta.total_seconds())
-    otherCad = int(solo.df.index.freq.delta.total_seconds())
+        # Light Curves
+        lc = LcurveManager(
+            csvPath=
+            "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
+            objCad=objCad,
+            wavelength=WAVELENGTH,
+        )
+        lc.df = lc.df.interpolate()  # Interpolate after forming lc object
+        """
+                                    16          17          18          21          22          23
+            Time                                                                                       
+            2020-05-27 00:00:00  329.801805  607.425191  613.393714  621.675743  720.785361  623.828448
+            ...                         ...         ...         ...         ...         ...         ...
+            2020-05-28 10:45:00  386.551898  623.982588  672.670828  641.362444  665.743955  570.076031
+        """
+        lcRegs = [
+            "11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"
+        ]
 
-    # Set up either case that we need to splice dframes
-    # These are fo
-    soloCon = [datetime(2020, 5, 31, 11, 0), datetime(2020, 5, 31, 13, 0)]
-    soloAcc = [datetime(2020, 5, 31, 17, 0), datetime(2020, 5, 31, 21, 0)]
+        # Cadence setup
+        selfCad = int(lc.df.index.freq.delta.total_seconds())
+        otherCad = int(solo.df.index.freq.delta.total_seconds())
 
-    # Dictionaries to extract data from timeseries
-    accCase = {
-        "AIATimes":
-        datetime(2020, 5, 27, 5, 0),
-        "soloTimes":
-        datetime(2020, 5, 31, 12, 0),
-        "margin":
-        1,
-        "soloDurn":
-        12,
-        "relevantTimes": [
-            {
-                "start": soloAcc[0],
-                "end": soloAcc[1],
-                "color": "blue",
-                "label": "Acc.",
-            },
-        ],
-    }
-    # soloTimes should be 12:00
+        # Open the cases file
+        caseName = "accCases" if accelerated == 4 / 3 else "consCases"
+        with open(
+                f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/{caseName}.pickle",
+                "rb") as f:
+            import pickle
+            cases = pickle.load(f)
 
-    conCase = {
-        "AIATimes":
-        datetime(2020, 5, 28, 5, 0),
-        "soloTimes":
-        datetime(2020, 5, 31, 5, 0),
-        "margin":
-        1,
-        "soloDurn":
-        8,
-        "relevantTimes": [
-            {
-                "start": datetime(2020, 5, 31, 10),
-                "end": datetime(2020, 5, 31, 11),
-                "color": "yellow",
-                "label": "Con",
-            },
-        ],
-        "label":
-        f"{WAVELENGTH}_Con"
-    }
+        # We set a margin around original obs.
+        aiaTimesList, soloTimesList, caseNamesList, refLocations = extractDiscreteExamples(
+            cases,
+            margin=12,
+        )
 
-    # Relevant times actually change. Could be good to show minimum and maximum SolO speeds?
-    multiAIACase = {
-        "AIATimes": datetime(2020, 5, 28, 2),
-        "soloTimes": datetime(2020, 5, 31, 0, 0),
-        "margin": 7,
-        "soloDurn": 24,
-        "relevantTimes": [],
-        "label": f"{WAVELENGTH}_R",
-    }
+        for index, aiaTimes in enumerate(aiaTimesList):
+            dirName = f"""{caseNamesList[index]}"""
 
-    # Select a case
-    selectedCase = multiAIACase
-    aiaTimesList, soloTimesList = extractDatetimePairs(selectedCase,
-                                                       soloTesting=False)
-    # Invert N timeseries
-    # solo.df["N"] = solo.df["N"].iloc[::-1].values
-
-    for aiaTimes in aiaTimesList:
-        if len(soloTimesList) > 1:
-            for soloTimes in soloTimesList:
-                dirName = f"""AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}___________SoloD{soloTimes[0].day}_H{soloTimes[0].hour}:D{soloTimes[0].day}_H{soloTimes[1].hour}"""
-
+            if not PLOT_ALL_TOGETHER:
                 compareLCurvesToSolo(
                     selfObj_Short=lc,
                     otherObj_Long=solo,
                     selfVars=lcRegs,
                     otherVars=soloVars,
                     selfTimes=aiaTimes,
-                    otherTimes=soloTimes,
-                    selfName=selectedCase["label"],
+                    otherTimes=soloTimesList[index],
+                    selfName=f"{WAVELENGTH}",
                     otherName="Solo",
                     selfCad=60,
                     otherCad=60,
@@ -273,29 +339,10 @@ if __name__ == "__main__":
                     PeriodMinMax=PERIODMINMAX,
                     delete=DELETE,
                     showFig=SHOWFIG,
-                    expectedLocationList=selectedCase["relevantTimes"],
+                    expectedLocationList=[refLocations[index]],
                     renormalize=False,
+                    SOLOHI=SOLOHI,
+                    SOLOLO=SOLOLO,
                 )
-        else:
-            soloTimes = soloTimesList[0]
-            dirName = f"""AIA_D{aiaTimes[0].day}_H{aiaTimes[0].hour}:{aiaTimes[1].hour}___________SoloD{soloTimes[0].day}_H{soloTimes[0].hour}:D{soloTimes[1].day}_H{soloTimes[1].hour}"""
-
-            compareLCurvesToSolo(
-                selfObj_Short=lc,
-                otherObj_Long=solo,
-                selfVars=lcRegs,
-                otherVars=soloVars,
-                selfTimes=aiaTimes,
-                otherTimes=soloTimes,
-                selfName=selectedCase["label"],
-                otherName="Solo",
-                selfCad=60,
-                otherCad=60,
-                objDirExt=dirName,
-                filterPeriods=FILTERP,
-                PeriodMinMax=PERIODMINMAX,
-                delete=DELETE,
-                showFig=SHOWFIG,
-                expectedLocationList=selectedCase["relevantTimes"],
-                renormalize=False,
-            )
+            elif PLOT_ALL_TOGETHER:
+                pass

@@ -42,13 +42,17 @@ def normalize_signal(s: np.ndarray):
     return s
 
 
-def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
+def transformTimeAxistoVelocity(timeAxis,
+                                originTime,
+                                BBstartTime=None,
+                                SPCKernelName=None):
     """
     Gives a corresponding velocity axis for a time axis and originTime
 
     Args:
         timeAxis: X axis with time values
         originTime: Time that is to be compared (hour of AIA images)
+        BBAvgTime: Time used in BBmapping
         SPCKernelName: Kernel name for spacecraft
     """
     import heliopy.data.spice as spicedata
@@ -59,7 +63,6 @@ def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
         sp_traj = spice.Trajectory("Solar Orbiter")
 
     elif SPCKernelName == "psp":
-
         spicedata.get_kernel("psp")
         sp_traj = spice.Trajectory("SPP")
         pass
@@ -69,10 +72,24 @@ def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
             f"{SPCKernelName} is not a valid spacecraft kernel, please choose one from ['solo'] "
         )
 
+    # Generate a list of times with timeAxis info
     times = list(timeAxis)
     sp_traj.generate_positions(times, 'Sun', 'IAU_SUN')  # Is in Km
-    R = sp_traj.coords.radius.mean()
+    R = sp_traj.coords.radius
 
+    # # Displacement of the BBmapped time to the centre
+    # centre = timeAxis[0] + (timeAxis[-1] - timeAxis[0]) / 2
+    # displFromCentre = (centre - BBstartTime).total_seconds()
+
+    # # Actualize time axis
+    # timeAxis = timeAxis - timedelta(seconds=displFromCentre)
+
+    # # Calculate new distance
+    # centre = timeAxis[0] + (timeAxis[-1] - timeAxis[0]) / 2
+
+    # assert BBstartTime == centre, "Ensures that time axis is displaced"
+
+    # Calculate dt Necessary for each of the positions. Only uses radius at the time, compares to AIA.
     dtAxis = [(t - originTime).total_seconds() for t in timeAxis]
     vSwAxis = R.value / dtAxis  # In km / s
 
@@ -968,7 +985,6 @@ class SignalFunctions(Signal):
                 right_bound + self.windowDisp,
             )
 
-        # TODO: Chck the P value for statistical significance
         np.save(self.path_to_signal, complete_array)  # Signal + IMFs
         np.save(self.path_to_corr_matrix, corr_matrix)  # IMF corrs
         return None
@@ -1094,7 +1110,11 @@ class SignalFunctions(Signal):
             filterPeriods=True,
             showFig=False,
             showSpeed=True,  # Whether to show speed instead of time
-            SPCKernelName="solo"):
+            SPCKernelName="solo",
+            LOSPEED=255,
+            HISPEED=285,
+            showLocationList=False,
+            ffactor=1):
         """
         This function plots the number of IMFs with high correlation for all heights
         Takes signal objects.
@@ -1102,6 +1122,7 @@ class SignalFunctions(Signal):
         Parameters:
         self: SignalFunctions object
         other: SignalFunctions object
+        ffactor = fudgeFactor (Acceleration possible)
 
         """
         try:
@@ -1192,7 +1213,7 @@ class SignalFunctions(Signal):
                 _number_high_sp = len(rvalid[np.abs(rvalid) >= corr_thr])
                 corr_locations[height, index, 2] = _number_high_sp
 
-                # TODO: If hit rate important, modify
+                # If hit rate important, modify
                 # if other.signalObject.location_signal_peak:
                 #     if location == "inside":
                 #         pe_sp_pairs[height, index, 0] = _number_high_pe
@@ -1340,11 +1361,9 @@ class SignalFunctions(Signal):
         # if other.signalObject.location_signal_peak:
         #     df_pe = pd.DataFrame({})
         #     df_sp = pd.DataFrame({})
-
         #     for index, corr_thr in enumerate(corrThrPlotList):
         #         df_pe[f"{corr_thr}"] = pe_sp_pairs[:, index, 0]
         #         df_sp[f"{corr_thr}"] = pe_sp_pairs[:, index, 1]
-
         #     # Then have the hitrate information available
         #     self.hitrate = (df_pe, df_sp)
         #     # hitrate_tables = self.calculate_hitrate(save=True)
@@ -1384,7 +1403,6 @@ class SignalFunctions(Signal):
                 color="black",
                 label=Label_long_ts,
                 alpha=1)
-        # TODO: Plot detrended dataset
 
         if filterPeriods:
             ax.set_title(f"{self.pmin} < {r'$P_{IMF}$'} < {self.pmax} min")
@@ -1441,7 +1459,7 @@ class SignalFunctions(Signal):
 
         # if Label_long_ts == 'Mf': --> Just /inset and change to if True
         in_ax = inset_axes(
-            ax,
+            ax2,
             width="15%",  # width = 30% of parent_bbox
             height=1,  # height : 1 inch
             loc="upper left",
@@ -1525,8 +1543,9 @@ class SignalFunctions(Signal):
                 time_axis[0] - timedelta(hours=margin_hours),
                 time_axis[-1] + timedelta(hours=margin_hours),
             )
+
             # If using some expected location dictionary add here
-            if expectedLocationList is not False:
+            if showLocationList is not False:
                 for expected_location in expectedLocationList:
                     start_expected = expected_location["start"]
                     end_expected = expected_location["end"]
@@ -1571,15 +1590,49 @@ class SignalFunctions(Signal):
         ax2.set_ylabel("Highest corr. found")
 
         if showSpeed:
+            assert expectedLocationList != False, "No expected location list"
+            expLocation = expectedLocationList[0]
+            expStart, expEnd = expLocation["start"], expLocation["end"]
+            # expMid = expStart + (expEnd - expStart) / 2
+
+            # TODO: CHECK WHAT EXPECTEDLOCATIONLIST DOES
             # Extract the Velocities
             vSWAxis = transformTimeAxistoVelocity(
                 time_axis,
-                originTime=short_signal.true_time.mean().to_pydatetime(),
+                originTime=short_signal.true_time[0].to_pydatetime(),
+                BBstartTime=expStart,
                 SPCKernelName=SPCKernelName)
 
             axV = ax2.twiny()
-            axV.plot(vSWAxis, long_values, alpha=0)
-            axV.set_title("Implied Vsw (km/s)")
+            axV.plot(vSWAxis, np.repeat(0.99, len(vSWAxis)), alpha=0)
+            axV.invert_xaxis()
+            # Add a span between low and high values
+            axV.axvspan(
+                xmin=LOSPEED,
+                xmax=HISPEED,
+                ymin=0,
+                ymax=1,
+                alpha=0.3,
+                color="orange",
+            )
+
+            # When we have a Fudge factor, add a column with it
+            if ffactor != 1:
+                accLO, accHI = [x / ffactor for x in (LOSPEED, HISPEED)]
+
+                if vSWAxis[0] < accLO < vSWAxis[-1] and vSWAxis[
+                        0] < accHI < vSWAxis[1]:
+
+                    axV.axvspan(
+                        xmin=accLO,
+                        xmax=accHI,
+                        ymin=0,
+                        ymax=1,
+                        alpha=0.3,
+                        color="blue",
+                    )
+
+            axV.set_title("Implied avg. Vsw (km/s)")
 
         ax2.grid(True)
 
@@ -1589,7 +1642,7 @@ class SignalFunctions(Signal):
             ax2.set_xlabel("Minutes since start")
 
         # Save, show and close
-        save_name = f"{long_signal.name}_{region_string}_IMF_Summary"
+        save_name = f"{region_string}_{long_signal.name}_Summary"
         plt.tight_layout()
         plt.savefig(
             f"{self.saveFolder}{save_name}.{self.saveformat}",
@@ -1705,11 +1758,14 @@ def compareTS(
     savePath=None,
     useRealTime=False,
     expectedLocationList=False,
+    showLocationList=False,
     detrend_box_width=200,
     delete=False,
     showFig=True,
     renormalize=False,
     showSpeed=False,
+    LOSPEED=255,
+    HISPEED=285,
     SPCKernelName="solo",
 ):
     """
@@ -1723,16 +1779,8 @@ def compareTS(
     winDispList is a list of window displacements, in seconds
     corrThrPlotList is 
 
-    
-    
-    
-    # """
-    # This function takes two dataframes with variables sampled at the same rate, and performs EMD analysis on them
-    # dfSelf is the dataframe of an object (Self)
-    # dfOther is the dataframe of a different object (Self)
-    # cadSelf, cadOther is cadence
-    # labelOther = Which label to show for other dataset
-    # """
+    labelOther = Which label to show for other dataset
+    """
 
     assert savePath != None, "Please set savePath to store relevant arrays"
     deleted_already = False
@@ -1806,9 +1854,13 @@ def compareTS(
                     bar_width=None,
                     useRealTime=useRealTime,
                     expectedLocationList=expectedLocationList,
+                    showLocationList=showLocationList,
                     showFig=showFig,
                     showSpeed=showSpeed,
                     SPCKernelName=SPCKernelName,
+                    LOSPEED=LOSPEED,
+                    HISPEED=HISPEED,
+                    ffactor=4 / 3,
                 )
 
 

@@ -12,14 +12,14 @@ from datetime import datetime, timedelta
 ssRadius = 2.5
 # accFactor = 4 / 3
 accFactor = 1
-MARGINAIA, MARGINFLINE = 1, 1
+MARGINAIA, MARGINFLINE = 0.2, 0.5
 
 startSolo = datetime(2020, 5, 30, 12)
-endSolo = datetime(2020, 6, 1)
+endSolo = datetime(2020, 6, 2)
 # startSolo = datetime(2020, 7, 7, 12)
 # endSolo = datetime(2020, 7, 8)
 
-gongTimeStart = startSolo - timedelta(days=3)
+gongTimeStart = startSolo - timedelta(days=2, hours=13)
 gongTimeEnd = gongTimeStart + timedelta(minutes=20)
 gongTime = (
     f"{gongTimeStart.year}/{gongTimeStart.month}/{gongTimeStart.day} {gongTimeStart.hour}:{gongTimeStart.minute}",
@@ -30,8 +30,8 @@ gongTime = (
 # dateAIA = gongTimeStart  # - timedelta(days=1)
 
 # Choose HI. LO. Or measured for vSW
-SOLOHI, SOLOLO, MEASURED = (285, 255, None)
-CUSTOMSPEED = SOLOHI
+SOLOHI, SOLOLO, MEAN, MEASURED = (285, 255, 270, None)
+CUSTOMSPEED = MEAN
 solo = SoloManager(times=(startSolo, endSolo), objCad=3600)
 gong = GONGManager(times=gongTime)
 aia = SDOAIAManager(
@@ -52,9 +52,10 @@ seedTimes = pfss.traceFlines(seedtimes=pfss.dfseeds.index)
 
 # Overplot Field lines on SDOAIA map
 aia.downloadData()
-time_1 = (gongTimeStart - timedelta(hours=24))
-time_2 = (gongTimeStart + timedelta(hours=24))
-timeRange = [d for d in pd.date_range(time_1, time_2, freq="1h")]
+# TODO: Modified from -24, + 24 -> Probably don't need such a wide margin anyway!
+time_1 = (gongTimeStart)
+time_2 = (gongTimeStart + timedelta(hours=48))
+timeRange = [d for d in pd.date_range(time_1, time_2, freq="30min")]
 
 #DONE: Add plot of the solo data
 if CUSTOMSPEED == None:
@@ -69,6 +70,7 @@ else:
 makedirs(savePath, exist_ok=True)
 
 for index, date_AIA in enumerate(timeRange):
+    print(date_AIA)
     aiaFile, timeDiff = aia.findClosestFile(dfiles=aia.dfiles,
                                             dateFind=date_AIA,
                                             margin=MARGINAIA)

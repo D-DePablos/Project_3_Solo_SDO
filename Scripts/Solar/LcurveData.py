@@ -22,6 +22,7 @@ class LcurveManager:
         self.df = pd.read_csv(Lc_csv)
         self.df.index = pd.to_datetime(self.df["Time"])
         del self.df["Time"]
+
         for column in self.df.columns:
             # Clear out columns which are empty
             if self.df[column].mean() == 0:
