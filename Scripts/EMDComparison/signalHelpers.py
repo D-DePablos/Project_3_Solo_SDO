@@ -20,12 +20,14 @@ from copy import deepcopy
 from glob import glob
 from collections import namedtuple
 
+Hmin = mdates.DateFormatter('%H:%M')
 # Quick fix for cross-package import
 
 emd = EMD()
 vis = Visualisation()
 
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
+corrThrPlotList = np.arange(0.65, 1, 0.05)
 
 # font = {"family": "DejaVu Sans", "weight": "normal", "size": 25}
 # rc("font", **font)
@@ -47,17 +49,13 @@ def normalize_signal(s: np.ndarray):
     return s
 
 
-def transformTimeAxistoVelocity(timeAxis,
-                                originTime,
-                                BBstartTime=None,
-                                SPCKernelName=None):
+def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
     """
     Gives a corresponding velocity axis for a time axis and originTime
 
     Args:
         timeAxis: X axis with time values
         originTime: Time that is to be compared (hour of AIA images)
-        BBAvgTime: Time used in BBmapping
         SPCKernelName: Kernel name for spacecraft
     """
     import heliopy.data.spice as spicedata
@@ -81,19 +79,6 @@ def transformTimeAxistoVelocity(timeAxis,
     times = list(timeAxis)
     sp_traj.generate_positions(times, 'Sun', 'IAU_SUN')  # Is in Km
     R = sp_traj.coords.radius
-
-    # # Displacement of the BBmapped time to the centre
-    # centre = timeAxis[0] + (timeAxis[-1] - timeAxis[0]) / 2
-    # displFromCentre = (centre - BBstartTime).total_seconds()
-
-    # # Actualize time axis
-    # timeAxis = timeAxis - timedelta(seconds=displFromCentre)
-
-    # # Calculate new distance
-    # centre = timeAxis[0] + (timeAxis[-1] - timeAxis[0]) / 2
-
-    # assert BBstartTime == centre, "Ensures that time axis is displaced"
-
     # Calculate dt Necessary for each of the positions. Only uses radius at the time, compares to AIA.
     dtAxis = [(t - originTime).total_seconds() for t in timeAxis]
     vSwAxis = R.value / dtAxis  # In km / s
@@ -1578,19 +1563,19 @@ class SignalFunctions(Signal):
             interval = int((other.t[-1] / 3600) / 10)
 
         # Set out the legend and info about pairs
-        legend_x = time_axis[-1] + margin_label
+        # legend_x = time_axis[-1] + margin_label
         # ax2.text(x=legend_x, y=0.95, s="1 pair", color=possibleColors["1"])
         # ax2.text(x=legend_x, y=0.9, s="2 pairs", color=possibleColors["2"])
         # ax2.text(x=legend_x, y=0.85, s="3 pairs", color=possibleColors["3"])
 
         # Divide by 2 number of ticks and add 1 as highest Corr
-        corr_thr_new = []
+        corrThrLimits = []
         for i, value in enumerate(corrThrPlotList):
             if np.mod(i, 2) == 0:
-                corr_thr_new.append(value)
-        corr_thr_new.append(1)
+                corrThrLimits.append(value)
+        corrThrLimits.append(1)
 
-        ax2.set_yticks(corr_thr_new)  # Ensure ticks are good
+        ax2.set_yticks(corrThrLimits)  # Ensure ticks are good
         ax2.set_ylim(corrThrPlotList[0], 1.01)  # Allows for any correlation
         ax2.set_ylabel("Highest corr. found")
 
@@ -1605,7 +1590,6 @@ class SignalFunctions(Signal):
             vSWAxis = transformTimeAxistoVelocity(
                 time_axis,
                 originTime=short_signal.true_time[0].to_pydatetime(),
-                BBstartTime=expStart,
                 SPCKernelName=SPCKernelName)
 
             axV = ax2.twiny()
@@ -1869,12 +1853,85 @@ def compareTS(
                 )
 
 
-def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
+def new_plot_format(dfInsitu,
+                    lcDic,
+                    regions,
+                    base_folder,
+                    period,
+                    addResidual=True,
+                    addEMDLcurves=True,
+                    SPCKernelName=None,
+                    spcSpeeds=(200, 300),
+                    showFig=False):
     """
     This new plot format requires rest of plots to have been made and correlations calculated!
 
     lcDic contains each of the relevant wavelengths and its dataframe
     """
+
+    # Adds the bar plots
+    def doBarplot(
+        ax: plt.axis,
+        RSDuration,
+        ISTime: np.ndarray,
+        corr_matrix: np.ndarray,
+        barColour: str,
+    ):
+
+        # Prepare the array with matches
+        corr_locations = np.ndarray(
+            (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 3))
+
+        axBar = ax.twinx()
+        for height in range(len(corr_matrix[0, 0, :, 0])):
+            pearson = corr_matrix[:, :, height, 0]
+            spearman = corr_matrix[:, :, height, 1]
+            spearman[spearman == 0] = np.nan
+            valid = corr_matrix[:, :, height, 2]
+
+            midpoint = corr_matrix[0, 0, height, 3]
+            midpoint_time = ISTime[0] + timedelta(seconds=midpoint)  # Ax xaxis
+            barchartTime = midpoint_time.to_pydatetime()
+
+            # Get rid of borders
+            pearson[pearson == 0] = np.nan
+            spearman[spearman == 0] = np.nan
+
+            # Pearson and Spearman Valid
+            pvalid = pearson[valid == 1]
+            rvalid = spearman[valid == 1]
+
+            for index, corr_thr in enumerate(corrThrPlotList):
+                _number_high_pe = len(pvalid[np.abs(pvalid) >= corr_thr])
+                corr_locations[height, index, 1] = _number_high_pe
+                _number_high_sp = len(rvalid[np.abs(rvalid) >= corr_thr])
+                corr_locations[height, index, 2] = _number_high_sp
+
+            for index, corrLabel in enumerate(corrThrPlotList):
+                pearson_array = corr_locations[height, :, 1]
+                if pearson_array[index] > 0:
+                    # Copy the axis
+                    axBar.bar(
+                        barchartTime,
+                        corrLabel,
+                        width=RSDuration,
+                        color=barColour,
+                        edgecolor=None,
+                        alpha=0.35,
+                        zorder=1,
+                    )
+
+        corrThrLimits = []
+        for i, value in enumerate(corrThrPlotList):
+            if np.mod(i, 2) == 0:
+                corrThrLimits.append(value)
+
+        axBar.set_yticks(corrThrLimits)  # Ensure ticks are good
+        axBar.set_ylim(corrThrPlotList[0], 1.01)  # Allows for any correlation
+        axBar.set_ylabel("Corr. value")
+        axBar.grid("both")
+
+    # Get all dataframes
     def collect_dfs_npys(isDf,
                          lcDic,
                          region,
@@ -1883,6 +1940,7 @@ def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
                          period="3 - 20"):
         def _find_corr_mat(
                 region="chole",
+                lcDic=lcDic,
                 wvl=193,
                 insituDF=None,
                 _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
@@ -1898,16 +1956,16 @@ def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
             resultingMatrices = {}
             matrixData = namedtuple("data",
                                     "isData corrMatrix shortData shortTime")
-            # TODO: Fix Summary_regions!
+
             for isparam in insituDF.columns:
                 # How do we get in situ data? From above function!
                 _subfolder = f"{_base_folder}{wvl}_{region}/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
                 foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
                 short_D = glob(f"{_subfolder}IMF/short*.npy")
-                short_T = glob(f"{_subfolder}IMF/time*.npy")
+                short_T = lcDic[wvl].index
                 resultingMatrices[f"{isparam}"] = matrixData(
                     insituDF[f"{isparam}"], np.load(foundMatrix[0]),
-                    np.load(short_D[0]), np.load(short_T[0]))
+                    np.load(short_D[0]), short_T)
 
             return resultingMatrices
 
@@ -1916,6 +1974,7 @@ def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
         for wvl in lcDic:
             # dataContainer should have all
             dataContainer = _find_corr_mat(wvl=wvl,
+                                           lcDic=lcDic,
                                            insituDF=isDf,
                                            _base_folder=base_folder,
                                            region=region,
@@ -1926,7 +1985,7 @@ def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
             expandedWvlDic[f"{wvl}"] = dataContainer
         return expandedWvlDic
 
-    # Such that each of the regions has a respective expandedWvlDic
+    # Create expandedWvlDic for each region
     regionDic = {}
     for region in regions:
         expandedWvlDic = collect_dfs_npys(
@@ -1937,8 +1996,8 @@ def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
             period=period,
         )
         regionDic[region] = expandedWvlDic
-    
-    # Separate by regions
+
+    # Once opened up each of the regions, do plots
     for region in regionDic:
         # Below is how you pull vars. Can use "isData corrMatrix shortData shortTime"
         # regionDic[f"{region}"]["94"]["N"].isData
@@ -1951,41 +2010,112 @@ def new_plot_format(dfInsitu, lcDic, regions, base_folder, period):
         n_insitu = len(insituList)
 
         nplots = n_wvl if n_wvl >= n_insitu else n_insitu
-        fig = plt.figure(figsize=(20, 8))
-        gs = gridspec.GridSpec(nplots, 2, width_ratios=[4, 1])
+        RSDuration = lcDic[wvlList[0]].index[-1] - lcDic[wvlList[0]].index[0]
+
+        # Create one figure per region, per aiaTime
+        fig, axs = plt.subplots(nrows=nplots,
+                                ncols=2,
+                                figsize=(16, 10),
+                                sharex="col",
+                                gridspec_kw={'width_ratios': [4, 1]})
+        fig.suptitle(
+            f'Region {region} -> AIA: {lcDic[wvlList[0]].index[0].strftime(format="%Y-%m-%d %H:%M")}',
+            size=20)
+
+        # Delete all axis. If used they are shown
+        for ax in axs:
+            ax[0].set_axis_off()
+            ax[1].set_axis_off()
 
         i, j = 0, 0
+        # In situ plots
         for i, isVar in enumerate(insituList):
-            # TODO: Add results bar
+            # Open up the isInfo from e.g., first WVL
             isTuple = r[f"{wvlList[0]}"][f"{isVar}"]
-            plt.subplot(gs[i, 0])
+            axIS = axs[i, 0]
+            axIS.set_axis_on()
+            plt.subplot(axIS)
             plt.plot(isTuple.isData, color="black")
+            # axIS.set_xlim(isTuple.isData.index[0], isTuple.isData.index[-1])
             plt.ylabel(isVar)
-            if i == 0:
-                plt.title(region)
 
+            # Add the speed information for first plot
+            if isVar == "V_R":
+                vSWAxis = transformTimeAxistoVelocity(
+                    isTuple.isData.index,
+                    originTime=isTuple.shortTime[0].to_pydatetime(),
+                    SPCKernelName=SPCKernelName,
+                )
+                axV = axIS.twiny()
+                axV.plot(vSWAxis, isTuple.isData, alpha=0)
+                axV.invert_xaxis()
+
+                # Add a span between low and high values
+                axV.axvspan(
+                    xmin=spcSpeeds[0],
+                    xmax=spcSpeeds[1],
+                    ymin=0,
+                    ymax=1,
+                    alpha=0.3,
+                    color="orange",
+                )
+            for wvl in wvlList:
+                corrMatrix = r[f"{wvl}"][f"{isVar}"].corrMatrix
+                doBarplot(axIS,
+                          ISTime=isTuple.isData.index,
+                          RSDuration=RSDuration,
+                          corr_matrix=corrMatrix,
+                          barColour=WVLColours[f"{wvl}"])
+
+            if i == n_insitu - 1:
+                axIS.xaxis.set_major_formatter(
+                    mdates.DateFormatter("%d %H:%M"))
+
+        # Plot all lightcurves
+        wvlDataLabel = "Det. Lcurve"
         for j, wvl in enumerate(wvlList):
             wvlTime = r[f"{wvl}"][f"{insituList[0]}"].shortTime
             wvlEMD = r[f"{wvl}"][f"{insituList[0]}"].shortData
-            plt.subplot(gs[j, 1])
-            plt.plot(wvlTime, wvlEMD[0], color=WVLColours[f"{wvl}"])
-            for wvlemd in wvlEMD[1:]:
-                plt.plot(wvlTime, wvlemd, color="black", alpha = 0.22)
+            axRE = axs[(nplots - n_wvl) + j, 1]
+            axRE.set_axis_on()
+            axRE.yaxis.set_visible(True)
+            axRE.yaxis.tick_right()
+            plt.subplot(axRE)
+            plt.title(f"{wvl} Angstrom")
 
-        # # Delete remaining axes
-        # if i > j:
-        #     for n in range(i - j):
-        #         fig.delaxes(axs[i - n, 1])
-        # else:
-        #     for n in range(j - i):
-        #         fig.delaxes(axs[j - n, 0])
+            if addResidual:
+                # Plot residual, then add it to all cases
+                wvlEMD[:-1] = wvlEMD[:-1] + wvlEMD[-1]
+                plt.plot(wvlTime,
+                         wvlEMD[-1],
+                         color="red",
+                         linestyle="--",
+                         label="Residual")
+                wvlDataLabel = "Lcurve"
 
-        # TODO: Need to add green bars on top of insitu
-        # TODO: Need to add EMD to Lcurves if required
-        plt.show()
-        
-        # Save the plot somewhere
-        pass
+            if addEMDLcurves:
+                for wvlemd in wvlEMD[1:-1]:
+                    plt.plot(wvlTime, wvlemd, color="black", alpha=0.22)
+
+            # Plot original data
+            plt.plot(wvlTime,
+                     wvlEMD[0],
+                     color=WVLColours[f"{wvl}"],
+                     label=wvlDataLabel)
+
+            plt.legend()
+
+            if j == n_wvl - 1:
+                axRE.xaxis.set_major_formatter(Hmin)
+                axRE.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
+                axRE.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+
+        saveFolder = f"{base_folder}0_Compressed/{period[0]} - {period[1]}/"
+        plt.tight_layout()
+        if showFig:
+            plt.show()
+        plt.savefig(f"{saveFolder}{region}.png")
+        plt.close()
 
 
 def plot_variables(df, BOXWIDTH=200):

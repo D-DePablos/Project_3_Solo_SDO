@@ -21,8 +21,8 @@ DELETE = False
 SHOWFIG = False
 FILTERP = True
 # PLOT_ALL_TOGETHER = True
-accelerated = 1
-# accelerated = 4 / 3
+# accelerated = 1
+accelerated = 4 / 3  # TODO : Fix accelerated case
 PERIODMINMAX = [3, 20]
 
 # Solar Orbiter Data requires start, end
@@ -30,9 +30,8 @@ start = datetime(2020, 5, 30, 12)
 end = datetime(2020, 6, 2)
 
 # Lcurve regions
-# lcRegs = [
-#     "11", "12", "13", "16", "17", "18", "21", "22", "23",
-#     "Summary_regions_11:13_21:23"]
+# lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
+
 lcRegs = ["11:13_21:23"]
 
 
@@ -254,8 +253,6 @@ def main():
 
 
 def new_plots():
-    # TODO: Then reduce how many arguments are required (in the end, a lot is predetermined!)
-    # TODO: Need to open up all lcurves
     lcDic = {}
     for _wvl in WVLLIST:
         lcDic[f"{_wvl}"] = LcurveManager(objCad=objCad, wavelength=_wvl)
@@ -271,9 +268,10 @@ def new_plots():
     )
     insituObject.df = insituObject.df.interpolate()  # Fill gaps
     # Velocities are modified with 4/3 factor. Gives slightly better idea
-    soloHI, soloLO, MEAN = (int(insituObject.df["V_R"].max() / accelerated),
-                            int(insituObject.df["V_R"].min() / accelerated),
-                            int(insituObject.df["V_R"].mean() / accelerated))
+    soloHI, soloLO = (
+        int(insituObject.df["V_R"].max() / accelerated),
+        int(insituObject.df["V_R"].min() / accelerated),
+    )
 
     # Calculate mass flux
     Vx = (insituObject.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
@@ -282,7 +280,7 @@ def new_plots():
     insituObject.df["Mf"] = (N * mp * Vx).value
 
     # Variables in situ
-    insituObjectVars = ["N", "T", "V_R", "Mf"]
+    insituObjectVars = ["V_R", "Mf", "N", "T"]
     # insituObjectVars = ["V_R"]
 
     # Open the cases file
@@ -315,10 +313,13 @@ def new_plots():
                         lcDic=lcDicCut,
                         regions=lcDicCut[list(lcDicCut.keys())[0]].columns,
                         base_folder=base_folder,
-                        period=PERIODMINMAX)
+                        period=PERIODMINMAX,
+                        addResidual=False,
+                        SPCKernelName="solo",
+                        spcSpeeds=(soloLO, soloHI),
+                        showFig=SHOWFIG)
 
 
 if __name__ == "__main__":
-    # TODO: need to fix summary_regions handling!
     # main()
     new_plots()
