@@ -20,9 +20,10 @@ WVLLIST = [94, 193, 211]
 DELETE = False
 SHOWFIG = False
 FILTERP = True
-# PLOT_ALL_TOGETHER = True
-# accelerated = 1
-accelerated = 4 / 3  # TODO : Fix accelerated case
+PLOT_ALL_TOGETHER = True
+# TODO: RUn again
+accelerated = 1
+# accelerated = 4 / 3
 PERIODMINMAX = [3, 20]
 
 # Solar Orbiter Data requires start, end
@@ -30,9 +31,9 @@ start = datetime(2020, 5, 30, 12)
 end = datetime(2020, 6, 2)
 
 # Lcurve regions
-# lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
+lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
 
-lcRegs = ["11:13_21:23"]
+# lcRegs = ["11:13_21:23"]
 
 
 # Import the following functions into the AnySpacecraft_data script
@@ -175,7 +176,7 @@ def extractDiscreteExamples(Caselist, margin, AIAduration=1):
     return aiaTimes, insituTimes, caseNames, refLocations
 
 
-def main():
+def deriveAndPlotSeparately():
     # The main program uses each of the wavelengths separately
     for wv in WVLLIST:
         WAVELENGTH = wv
@@ -252,7 +253,7 @@ def main():
             )
 
 
-def new_plots():
+def combinedPlot():
     lcDic = {}
     for _wvl in WVLLIST:
         lcDic[f"{_wvl}"] = LcurveManager(objCad=objCad, wavelength=_wvl)
@@ -321,5 +322,8 @@ def new_plots():
 
 
 if __name__ == "__main__":
-    # main()
-    new_plots()
+    if not PLOT_ALL_TOGETHER:
+        deriveAndPlotSeparately()
+
+    else:
+        combinedPlot()

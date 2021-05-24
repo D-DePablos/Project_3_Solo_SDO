@@ -27,7 +27,7 @@ emd = EMD()
 vis = Visualisation()
 
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
-corrThrPlotList = np.arange(0.65, 1, 0.05)
+corrThrPlotList = np.arange(0.7, 1, 0.05)
 
 # font = {"family": "DejaVu Sans", "weight": "normal", "size": 25}
 # rc("font", **font)
@@ -144,7 +144,7 @@ def check_imf_periods(t,
     N = t[-1] - t[0]
     Period_valid = np.ndarray((len(imfs), 2))
 
-    if pmin is not None and filter_low_high == (0, 0):
+    if filter_low_high == (0, 0):
         for i, imf in enumerate(imfs):
             # Maybe not the nicest use of find_extrema
             n_extrema = len(emd.find_extrema(T=t, S=imf)[0])
@@ -1931,6 +1931,8 @@ def new_plot_format(dfInsitu,
         axBar.set_ylabel("Corr. value")
         axBar.grid("both")
 
+        return corr_matrix[:, :, 0, 2]  # Return valid Arrays per height
+
     # Get all dataframes
     def collect_dfs_npys(isDf,
                          lcDic,
@@ -2028,6 +2030,8 @@ def new_plot_format(dfInsitu,
             ax[1].set_axis_off()
 
         i, j = 0, 0
+        WVLValidity = {}
+
         # In situ plots
         for i, isVar in enumerate(insituList):
             # Open up the isInfo from e.g., first WVL
@@ -2059,13 +2063,17 @@ def new_plot_format(dfInsitu,
                     alpha=0.3,
                     color="orange",
                 )
+            # Plot bars within In situ chart and get IMF validity per WVL
             for wvl in wvlList:
                 corrMatrix = r[f"{wvl}"][f"{isVar}"].corrMatrix
-                doBarplot(axIS,
-                          ISTime=isTuple.isData.index,
-                          RSDuration=RSDuration,
-                          corr_matrix=corrMatrix,
-                          barColour=WVLColours[f"{wvl}"])
+                validIMFsMatrix = doBarplot(axIS,
+                                            ISTime=isTuple.isData.index,
+                                            RSDuration=RSDuration,
+                                            corr_matrix=corrMatrix,
+                                            barColour=WVLColours[f"{wvl}"])
+
+                if i == n_insitu - 1:
+                    WVLValidity[f"{wvl}"] = validIMFsMatrix[:, 0]
 
             if i == n_insitu - 1:
                 axIS.xaxis.set_major_formatter(
@@ -2081,7 +2089,6 @@ def new_plot_format(dfInsitu,
             axRE.yaxis.set_visible(True)
             axRE.yaxis.tick_right()
             plt.subplot(axRE)
-            plt.title(f"{wvl} Angstrom")
 
             if addResidual:
                 # Plot residual, then add it to all cases
@@ -2090,18 +2097,26 @@ def new_plot_format(dfInsitu,
                          wvlEMD[-1],
                          color="red",
                          linestyle="--",
+                         alpha=0.5,
                          label="Residual")
                 wvlDataLabel = "Lcurve"
-
-            if addEMDLcurves:
-                for wvlemd in wvlEMD[1:-1]:
-                    plt.plot(wvlTime, wvlemd, color="black", alpha=0.22)
 
             # Plot original data
             plt.plot(wvlTime,
                      wvlEMD[0],
                      color=WVLColours[f"{wvl}"],
-                     label=wvlDataLabel)
+                     label=wvlDataLabel + f" {wvl} Ang.",
+                     alpha=0.4,
+                     linestyle="--")
+
+            if addEMDLcurves:
+                for k, wvlemd in enumerate(wvlEMD[1:-1]):
+                    if int(WVLValidity[f"{wvl}"][k]) == 1:
+                        plt.plot(
+                            wvlTime,
+                            wvlemd,
+                            alpha=0.9,
+                        )
 
             plt.legend()
 
