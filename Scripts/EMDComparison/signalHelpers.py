@@ -2038,7 +2038,7 @@ def new_plot_format(dfInsitu,
             isTuple = r[f"{wvlList[0]}"][f"{isVar}"]
             axIS = axs[i, 0]
             axIS.set_axis_on()
-            plt.subplot(axIS)
+            fig.add_subplot(axIS)
             plt.plot(isTuple.isData, color="black")
             # axIS.set_xlim(isTuple.isData.index[0], isTuple.isData.index[-1])
             plt.ylabel(isVar)
@@ -2088,7 +2088,7 @@ def new_plot_format(dfInsitu,
             axRE.set_axis_on()
             axRE.yaxis.set_visible(True)
             axRE.yaxis.tick_right()
-            plt.subplot(axRE)
+            fig.add_subplot(axRE)
 
             if addResidual:
                 # Plot residual, then add it to all cases

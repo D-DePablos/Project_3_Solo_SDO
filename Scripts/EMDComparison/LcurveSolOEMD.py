@@ -18,10 +18,9 @@ from astropy import units as u
 objCad = 60  # Objective cadence in seconds for comparisons
 WVLLIST = [94, 193, 211]
 DELETE = False
-SHOWFIG = False
+SHOWFIG = True
 FILTERP = True
 PLOT_ALL_TOGETHER = True
-# TODO: RUn again
 accelerated = 1
 # accelerated = 4 / 3
 PERIODMINMAX = [3, 20]
