@@ -1853,6 +1853,31 @@ def compareTS(
                 )
 
 
+def plot_super_summary(
+        allCasesList,
+        longSpan,
+        regions,
+        unsafeEMDDataPath,
+        period,
+        SPCKernelName,
+        spcSpeeds=(None, None),
+        showFig=False,
+):
+    """Plots a "super" summary with info about all selected regions
+
+    Args:
+        allCasesList (List): All the cases in a list, each index has some info
+        longSpan (tuple): Start and end time of all possible LONG data
+        regions (List): [description]
+        base_folder (String (Path)): The path under which all the numpy arrays are found
+        period (Tuple): [description]
+        SPCKernelName ([type], optional): SpacecraftKernel name for psp or solo. Defaults to None.
+        showFig (bool, optional): [description]. Defaults to False.
+    """
+    # base_folder = f"{unsafeEMDDataPath}{dirExtension}/"
+    pass
+
+
 def new_plot_format(dfInsitu,
                     lcDic,
                     regions,
