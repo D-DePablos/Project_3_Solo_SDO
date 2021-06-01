@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from os import makedirs
 
+# Base path for Project 3
 PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/remoteData/"
 
 

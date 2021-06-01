@@ -49,6 +49,60 @@ def normalize_signal(s: np.ndarray):
     return s
 
 
+def collect_dfs_npys(isDf,
+                     lcDic,
+                     region,
+                     base_folder,
+                     windDisp="60s",
+                     period="3 - 20"):
+    def _find_corr_mat(
+            region="chole",
+            lcDic=lcDic,
+            wvl=193,
+            insituDF=None,
+            _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
+            windDisp="60s",
+            period="3 - 20"):
+        """Finds correlation matrices for all In-situ variables and a given wavelength
+
+        Args:
+            region (str): Which remote sensing region to explore
+            wvl (int): Which wavelength is relevant
+            insituParams (list): In situ parameters to find correlation matrices for
+        """
+        resultingMatrices = {}
+        matrixData = namedtuple("data",
+                                "isData corrMatrix shortData shortTime")
+
+        for isparam in insituDF.columns:
+            # How do we get in situ data? From above function!
+            _subfolder = f"{_base_folder}{wvl}_{region}/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
+            foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
+            short_D = glob(f"{_subfolder}IMF/short*.npy")
+            short_T = lcDic[wvl].index
+            resultingMatrices[f"{isparam}"] = matrixData(
+                insituDF[f"{isparam}"], np.load(foundMatrix[0]),
+                np.load(short_D[0]), short_T)
+
+        return resultingMatrices
+
+    expandedWvlDic = {}
+    # Select the correlation matrix for each insituObject variable, given region, given lcurve
+    for wvl in lcDic:
+        # dataContainer should have all
+        dataContainer = _find_corr_mat(wvl=wvl,
+                                       lcDic=lcDic,
+                                       insituDF=isDf,
+                                       _base_folder=base_folder,
+                                       region=region,
+                                       windDisp=windDisp,
+                                       period=period)
+
+        #namedtuple("data", "isData corrMatrix shortData shortTime")
+        expandedWvlDic[f"{wvl}"] = dataContainer
+    return expandedWvlDic
+
+
 def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
     """
     Gives a corresponding velocity axis for a time axis and originTime
@@ -1856,10 +1910,13 @@ def compareTS(
 def plot_super_summary(
         allCasesList,
         longSpan,
+        wvlList,
+        insituParam,
         regions,
         unsafeEMDDataPath,
         period,
         SPCKernelName,
+        cadence="60s",
         spcSpeeds=(None, None),
         showFig=False,
 ):
@@ -1868,26 +1925,95 @@ def plot_super_summary(
     Args:
         allCasesList (List): All the cases in a list, each index has some info
         longSpan (tuple): Start and end time of all possible LONG data
+        wvlList (tuple): 
         regions (List): [description]
-        base_folder (String (Path)): The path under which all the numpy arrays are found
+        unsafeEMDDataPath (String (Path)): The path under which all the numpy arrays are found
         period (Tuple): [description]
         SPCKernelName ([type], optional): SpacecraftKernel name for psp or solo. Defaults to None.
         showFig (bool, optional): [description]. Defaults to False.
     """
-    # base_folder = f"{unsafeEMDDataPath}{dirExtension}/"
+
+    for region in regions:
+
+        fig, axs = plt.subplots(nrows=len(allCasesList), ncols=1, sharex=True)
+
+        for index, ax in enumerate(axs):
+            base_path = f"{unsafeEMDDataPath}{allCasesList[index].dirExtension}/"
+
+            for _wvl in wvlList:
+                wvlPath = f"{base_path}{_wvl}_{region}/"
+                corr_matrix = np.load(
+                    f"{wvlPath}{insituParam}/{cadence}/{period[0]} - {period[1]}/IMF/Corr_matrix_all.npy"
+                )
+
+                # Get all correlations
+                for height in range(len(corr_matrix[0, 0, :, 0])):
+                    pearson = corr_matrix[:, :, height, 0]
+                    spearman = corr_matrix[:, :, height, 1]
+                    spearman[spearman == 0] = np.nan
+                    valid = corr_matrix[:, :, height, 2]
+
+                    midpoint = corr_matrix[0, 0, height, 3]
+                    midpoint_time = allCasesList[index][0] + timedelta(
+                        seconds=midpoint)  # Ax xaxis
+
+                    # Transform to real time
+                    midpointRealTime = midpoint_time.to_pydatetime()
+
+                    # Get rid of borders
+                    pearson[pearson == 0] = np.nan
+                    spearman[spearman == 0] = np.nan
+
+                    # Pearson and Spearman Valid
+                    pvalid = pearson[valid == 1]
+                    rvalid = spearman[valid == 1]
+
+                    # After getting rid of some pearson and spearman values
+                    # Necessary to cound how many are above each given threshold
+                    # Could theoretically change this to just do circles above certain level
+
+                    # TODO: Make stacked bars duration of SolO data
+                    # TODO: Stack up AIA times
+                    for index, corr_thr in enumerate(corrThrPlotList):
+                        _number_high_pe = len(
+                            pvalid[np.abs(pvalid) >= corr_thr])
+                        corr_locations[height, index, 1] = _number_high_pe
+                        _number_high_sp = len(
+                            rvalid[np.abs(rvalid) >= corr_thr])
+                        corr_locations[height, index, 2] = _number_high_sp
+
+                    for index, corrLabel in enumerate(corrThrPlotList):
+                        pearson_array = corr_locations[height, :, 1]
+                        # TODO: Find highest index and use as size
+
     pass
 
+    # expandedWvlDic = collect_dfs_npys(
+    #     region=region,
+    #     isDf=dfInsitu,
+    #     lcDic=lcDic,
+    #     base_folder=base_folder,
+    #     period=period,
+    # )
+    # regionDic[region] = expandedWvlDic
 
-def new_plot_format(dfInsitu,
-                    lcDic,
-                    regions,
-                    base_folder,
-                    period,
-                    addResidual=True,
-                    addEMDLcurves=True,
-                    SPCKernelName=None,
-                    spcSpeeds=(200, 300),
-                    showFig=False):
+    # base_folder = f"{unsafeEMDDataPath}{dirExtension}/"
+
+    # Make a single plot with all info
+
+
+def new_plot_format(
+        dfInsitu,
+        lcDic,
+        regions,
+        base_folder,
+        period,
+        addResidual=True,
+        addEMDLcurves=True,
+        SPCKernelName=None,
+        spcSpeeds=(200, 300),
+        showFig=False,
+):
     """
     This new plot format requires rest of plots to have been made and correlations calculated!
 
@@ -1957,60 +2083,6 @@ def new_plot_format(dfInsitu,
         axBar.grid("both")
 
         return corr_matrix[:, :, 0, 2]  # Return valid Arrays per height
-
-    # Get all dataframes
-    def collect_dfs_npys(isDf,
-                         lcDic,
-                         region,
-                         base_folder,
-                         windDisp="60s",
-                         period="3 - 20"):
-        def _find_corr_mat(
-                region="chole",
-                lcDic=lcDic,
-                wvl=193,
-                insituDF=None,
-                _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
-                windDisp="60s",
-                period="3 - 20"):
-            """Finds correlation matrices for all In-situ variables and a given wavelength
-
-            Args:
-                region (str): Which remote sensing region to explore
-                wvl (int): Which wavelength is relevant
-                insituParams (list): In situ parameters to find correlation matrices for
-            """
-            resultingMatrices = {}
-            matrixData = namedtuple("data",
-                                    "isData corrMatrix shortData shortTime")
-
-            for isparam in insituDF.columns:
-                # How do we get in situ data? From above function!
-                _subfolder = f"{_base_folder}{wvl}_{region}/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
-                foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
-                short_D = glob(f"{_subfolder}IMF/short*.npy")
-                short_T = lcDic[wvl].index
-                resultingMatrices[f"{isparam}"] = matrixData(
-                    insituDF[f"{isparam}"], np.load(foundMatrix[0]),
-                    np.load(short_D[0]), short_T)
-
-            return resultingMatrices
-
-        expandedWvlDic = {}
-        # Select the correlation matrix for each insituObject variable, given region, given lcurve
-        for wvl in lcDic:
-            # dataContainer should have all
-            dataContainer = _find_corr_mat(wvl=wvl,
-                                           lcDic=lcDic,
-                                           insituDF=isDf,
-                                           _base_folder=base_folder,
-                                           region=region,
-                                           windDisp=windDisp,
-                                           period=period)
-
-            #namedtuple("data", "isData corrMatrix shortData shortTime")
-            expandedWvlDic[f"{wvl}"] = dataContainer
-        return expandedWvlDic
 
     # Create expandedWvlDic for each region
     regionDic = {}
@@ -2122,17 +2194,18 @@ def new_plot_format(dfInsitu,
                          wvlEMD[-1],
                          color="red",
                          linestyle="--",
-                         alpha=0.5,
+                         alpha=0.8,
                          label="Residual")
                 wvlDataLabel = "Lcurve"
 
             # Plot original data
-            plt.plot(wvlTime,
-                     wvlEMD[0],
-                     color=WVLColours[f"{wvl}"],
-                     label=wvlDataLabel + f" {wvl} Ang.",
-                     alpha=0.4,
-                     linestyle="--")
+            plt.plot(
+                wvlTime,
+                wvlEMD[0],
+                color=WVLColours[f"{wvl}"],
+                label=wvlDataLabel + f" {wvl} Ang.",
+                alpha=0.7,
+            )
 
             if addEMDLcurves:
                 for k, wvlemd in enumerate(wvlEMD[1:-1]):
@@ -2150,7 +2223,9 @@ def new_plot_format(dfInsitu,
                 axRE.xaxis.set_minor_locator(mdates.MinuteLocator(interval=15))
                 axRE.xaxis.set_major_locator(mdates.HourLocator(interval=1))
 
+        from os import makedirs
         saveFolder = f"{base_folder}0_Compressed/{period[0]} - {period[1]}/"
+        makedirs(saveFolder, exist_ok=True)
         plt.tight_layout()
         if showFig:
             plt.show()

@@ -18,15 +18,17 @@ from astropy import units as u
 # Set parameters here
 objCad = 60  # Objective cadence in seconds for comparisons
 WVLLIST = [94, 193, 211]
+PERIODMINMAX = [3, 20]
 DELETE = False
 SHOWFIG = False
 FILTERP = True
-PLOT_ALL_TOGETHER = False
-SUPER_SUMMARY_PLOT = False
-accelerated = 1
-# accelerated = 4 / 3
-psf = True
-PERIODMINMAX = [3, 20]
+PLOT_ALL_TOGETHER = True
+SUPER_SUMMARY_PLOT = True
+# accelerated = 1
+accelerated = 4 / 3
+
+# If necessary to do PSF test (currently only good for 193, 27 23:00)
+# psf = False
 
 # Solar Orbiter Data requires start, end
 start = datetime(2020, 5, 30, 12)
@@ -34,8 +36,6 @@ end = datetime(2020, 6, 2)
 
 # Lcurve regions
 lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
-
-# lcRegs = ["11", "12"]
 
 
 # Import the following functions into the AnySpacecraft_data script
@@ -234,35 +234,35 @@ def first_DeriveAndPlotSeparately():
             # Only for the 27th, 23
             dirName = f"""{caseNamesList[index]}"""
 
-            if psf and aiaTimes[0].hour == 23:
-                dirName = "PSF_TEST_27th_23"
-                lc.psf_test()
-                lc.df = lc.df.interpolate()
+            # if aiaTimes[0].hour == 23:
+            #     if psf:
+            #         dirName = "PSF_TEST_27th_23"
 
-                compareLcurvesToSolO(
-                    remoteObj=lc,
-                    insituObj=insituObject,
-                    remVars=lcRegs,
-                    insituVars=insituObjectVars,
-                    remoteTimes=aiaTimes,
-                    insituTimes=soloTimesList[index],
-                    remoteName=f"{WAVELENGTH}",
-                    insituName="SolO",
-                    remoteCad=objCad,
-                    insituCad=objCad,
-                    objDirExt=dirName,
-                    filterPeriods=FILTERP,
-                    PeriodMinMax=PERIODMINMAX,
-                    delete=DELETE,
-                    showFig=SHOWFIG,
-                    expectedLocationList=[refLocations[index]],
-                    renormalize=False,
-                    soloHI=soloHI,
-                    soloLO=soloLO,
-                )
+            #         if WAVELENGTH == 193:
+            #             lc.psf_test()
+            #             lc.df = lc.df.interpolate()
 
-            else:
-                pass
+            compareLcurvesToSolO(
+                remoteObj=lc,
+                insituObj=insituObject,
+                remVars=lcRegs,
+                insituVars=insituObjectVars,
+                remoteTimes=aiaTimes,
+                insituTimes=soloTimesList[index],
+                remoteName=f"{WAVELENGTH}",
+                insituName="SolO",
+                remoteCad=objCad,
+                insituCad=objCad,
+                objDirExt=dirName,
+                filterPeriods=FILTERP,
+                PeriodMinMax=PERIODMINMAX,
+                delete=DELETE,
+                showFig=SHOWFIG,
+                expectedLocationList=[refLocations[index]],
+                renormalize=False,
+                soloHI=soloHI,
+                soloLO=soloLO,
+            )
 
 
 def combinedPlot(superSummaryPlot=False):
@@ -310,27 +310,25 @@ def combinedPlot(superSummaryPlot=False):
         margin=12,
     )
 
+    # When necessary to make summary of all summaries
     if superSummaryPlot:
 
+        # Possibly this is not great
+        soloStendTotal = (insituObject.df.index[0].to_pydatetime(),
+                          insituObject.df.index[-1].to_pydatetime())
+
+        wvlList = WVLLIST
+
         allCases = []
-        Casetuple = namedtuple(
-            "Case", ["IS", "RSDic", "dirExtension", "isStend_t", "rsStend_t"])
+        Casetuple = namedtuple("Case",
+                               ["dirExtension", "isStend_t", "rsStend_t"])
         for index, aiaTimes in enumerate(aiaTimesList):
             _isT = soloTimesList[index]
-            _dfISCut = insituObject.df[_isT[0]:_isT[1]]
-            _dfISCut = _dfISCut[insituObjectVars]
             dirExtension = f"{caseNamesList[index]}"
-
-            lcDicCut = {}
-
-            for _wvl in lcDic:
-                lcDicCut[f"{_wvl}"] = lcDic[_wvl].df[aiaTimes[0]:aiaTimes[1]]
-
             allCases.append(
-                Casetuple(_dfISCut, lcDicCut, dirExtension, [_isT[0], _isT[1]],
-                          [aiaTimes[0], aiaTimes[1]]))
+                Casetuple(dirExtension, (_isT[0], _isT[1]),
+                          (aiaTimes[0], aiaTimes[1])))
 
-        # TODO: See below
         # ShortSpan not required as number of aiaTimes is most relevant
         # Think about what information is absolutely necessary, e.g.,
         # Start and end time of AIA, SolO - DONE
@@ -340,16 +338,23 @@ def combinedPlot(superSummaryPlot=False):
         # Find how to plot circles depending on correlation value
         # Figure out whether to show yellow bar
 
-        plot_super_summary(
-            allCasesList=allCases,
-            longSpan=(start, end),
-            regions=lcRegs,
-            unsafeEMDDataPath=UNSAFE_EMD_DATA_PATH,
-            period=PERIODMINMAX,
-            SPCKernelName="solo",
-            spcSpeeds=(None, None),
-            showFig=SHOWFIG,
-        )
+        insituObject.df.columns = [
+            "Solo_" + param for param in insituObject.df.columns
+        ]
+
+        for insituParam in insituObject.df.columns:
+            plot_super_summary(
+                allCasesList=allCases,
+                longSpan=soloStendTotal,
+                wvlList=wvlList,
+                insituParam=insituParam,
+                regions=lcRegs,
+                unsafeEMDDataPath=UNSAFE_EMD_DATA_PATH,
+                period=PERIODMINMAX,
+                SPCKernelName="solo",
+                spcSpeeds=(None, None),
+                showFig=SHOWFIG,
+            )
 
     else:
 
@@ -361,13 +366,22 @@ def combinedPlot(superSummaryPlot=False):
 
             lcDicCut = {}
             for _wvl in lcDic:
-                lcDicCut[f"{_wvl}"] = lcDic[_wvl].df[aiaTimes[0]:aiaTimes[1]]
+                lcDicCut[f"{_wvl}"] = lcDic[_wvl].df[
+                    aiaTimes[0]:aiaTimes[1]].copy()
 
             dirExtension = f"{caseNamesList[index]}"
+            # When required to do PSF test
+            # if aiaTimes[0].hour == 23:
+
+            #     if psf:
+            #         dirExtension = "PSF_TEST_27th_23"
+            #         lcDic[f"{193}"].psf_test()
+            #         lcDicCut[f"{193}"] = lcDic[f"{193}"].df.interpolate()
+
             base_folder = f"{UNSAFE_EMD_DATA_PATH}{dirExtension}/"
             new_plot_format(dfInsitu=dfInsituCut,
                             lcDic=lcDicCut,
-                            regions=lcDicCut[list(lcDicCut.keys())[0]].columns,
+                            regions=lcRegs,
                             base_folder=base_folder,
                             period=PERIODMINMAX,
                             addResidual=False,
