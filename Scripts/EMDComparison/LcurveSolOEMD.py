@@ -24,6 +24,7 @@ SHOWFIG = False
 FILTERP = True
 PLOT_ALL_TOGETHER = True
 SUPER_SUMMARY_PLOT = True
+ADDRESIDUAL = False
 # accelerated = 1
 accelerated = 4 / 3
 
@@ -35,7 +36,12 @@ start = datetime(2020, 5, 30, 12)
 end = datetime(2020, 6, 2)
 
 # Lcurve regions
-lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
+# lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
+
+# Do only 9 for square plots
+lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23"]
+
+# lcRegs = ["11:13_21:23"]
 
 
 # Import the following functions into the AnySpacecraft_data script
@@ -234,6 +240,7 @@ def first_DeriveAndPlotSeparately():
             # Only for the 27th, 23
             dirName = f"""{caseNamesList[index]}"""
 
+            # Here we produce relevant files and derive EMDs
             # if aiaTimes[0].hour == 23:
             #     if psf:
             #         dirName = "PSF_TEST_27th_23"
@@ -294,7 +301,7 @@ def combinedPlot(superSummaryPlot=False):
 
     # Variables in situ
     insituObjectVars = ["V_R", "Mf", "N", "T"]
-    # insituObjectVars = ["V_R"]
+    insituObject.df = insituObject.df[insituObjectVars]
 
     # Open the cases file
     caseName = "accCases" if accelerated == 4 / 3 else "consCases"
@@ -303,6 +310,8 @@ def combinedPlot(superSummaryPlot=False):
             "rb") as f:
         import pickle
         cases = pickle.load(f)
+
+    figName = "accelerated" if accelerated == 4 / 3 else "constant"
 
     # We set a margin around original obs.
     aiaTimesList, soloTimesList, caseNamesList, refLocations = extractDiscreteExamples(
@@ -339,7 +348,7 @@ def combinedPlot(superSummaryPlot=False):
         # Figure out whether to show yellow bar
 
         insituObject.df.columns = [
-            "Solo_" + param for param in insituObject.df.columns
+            "SolO_" + param for param in insituObject.df.columns
         ]
 
         for insituParam in insituObject.df.columns:
@@ -352,13 +361,14 @@ def combinedPlot(superSummaryPlot=False):
                 unsafeEMDDataPath=UNSAFE_EMD_DATA_PATH,
                 period=PERIODMINMAX,
                 SPCKernelName="solo",
-                spcSpeeds=(None, None),
+                spcSpeeds=(soloLO, soloHI),
                 showFig=SHOWFIG,
+                figName=figName,
             )
 
     else:
-
         for index, aiaTimes in enumerate(aiaTimesList):
+            print(aiaTimes[0])
             # Need to cut up dataframes
             isTimes = soloTimesList[index]
             dfInsituCut = insituObject.df[isTimes[0]:isTimes[1]]
@@ -370,13 +380,13 @@ def combinedPlot(superSummaryPlot=False):
                     aiaTimes[0]:aiaTimes[1]].copy()
 
             dirExtension = f"{caseNamesList[index]}"
-            # When required to do PSF test
+            ## When required to do PSF test
             # if aiaTimes[0].hour == 23:
 
-            #     if psf:
-            #         dirExtension = "PSF_TEST_27th_23"
-            #         lcDic[f"{193}"].psf_test()
-            #         lcDicCut[f"{193}"] = lcDic[f"{193}"].df.interpolate()
+            # if psf:
+            #     dirExtension = "PSF_TEST_27th_23"
+            #     lcDic[f"{193}"].psf_test()
+            #     lcDicCut[f"{193}"] = lcDic[f"{193}"].df.interpolate()
 
             base_folder = f"{UNSAFE_EMD_DATA_PATH}{dirExtension}/"
             new_plot_format(dfInsitu=dfInsituCut,
@@ -384,7 +394,7 @@ def combinedPlot(superSummaryPlot=False):
                             regions=lcRegs,
                             base_folder=base_folder,
                             period=PERIODMINMAX,
-                            addResidual=False,
+                            addResidual=ADDRESIDUAL,
                             SPCKernelName="solo",
                             spcSpeeds=(soloLO, soloHI),
                             showFig=SHOWFIG)

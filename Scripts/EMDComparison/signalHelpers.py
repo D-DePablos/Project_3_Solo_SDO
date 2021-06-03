@@ -29,6 +29,19 @@ vis = Visualisation()
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
 corrThrPlotList = np.arange(0.7, 1, 0.05)
 
+# Dictionary which contains relevant axis for a 9x9 grid for each of the regions
+axDic = {
+    "11": [0, 0],
+    "12": [0, 1],
+    "13": [0, 2],
+    "16": [1, 0],
+    "17": [1, 1],
+    "18": [1, 2],
+    "21": [2, 0],
+    "22": [2, 1],
+    "23": [2, 2],
+}
+
 # font = {"family": "DejaVu Sans", "weight": "normal", "size": 25}
 # rc("font", **font)
 
@@ -1919,26 +1932,65 @@ def plot_super_summary(
         cadence="60s",
         spcSpeeds=(None, None),
         showFig=False,
+        figName="",
 ):
     """Plots a "super" summary with info about all selected regions
 
     Args:
         allCasesList (List): All the cases in a list, each index has some info
         longSpan (tuple): Start and end time of all possible LONG data
-        wvlList (tuple): 
-        regions (List): [description]
+        wvlList (tuple): List of wavelengths which are to be studied
+        regions (List): List of regions that should be plotted. Good to be square
         unsafeEMDDataPath (String (Path)): The path under which all the numpy arrays are found
         period (Tuple): [description]
         SPCKernelName ([type], optional): SpacecraftKernel name for psp or solo. Defaults to None.
         showFig (bool, optional): [description]. Defaults to False.
     """
 
+    # Gapless subplots figure
+    # import matplotlib.pyplot as plt
+
+    # fig = plt.figure(figsize=(8,8)) # Notice the equal aspect ratio
+    # ax = [fig.add_subplot(2,2,i+1) for i in range(4)]
+
+    # for a in ax:
+    #     a.set_xticklabels([])
+    #     a.set_yticklabels([])
+    #     a.set_aspect('equal')
+
+    # fig.subplots_adjust(wspace=0, hspace=0)
+    nrowsCols = int(np.sqrt(len(regions)))
+    fig, axs = plt.subplots(nrowsCols,
+                            nrowsCols,
+                            figsize=(16, 10),
+                            sharex=True,
+                            sharey=True)
+
     for region in regions:
 
-        fig, axs = plt.subplots(nrows=len(allCasesList), ncols=1, sharex=True)
+        # 2-d position in grid
+        row, col = axDic[region]
+        ax = axs[row, col]
 
-        for index, ax in enumerate(axs):
+        # Take the starting point for AIA Times
+        aiaTimes = []
+        for case in allCasesList:
+            aiaTimes.append(case.rsStend_t[0])
+
+        for index, aiaT in enumerate(aiaTimes):
             base_path = f"{unsafeEMDDataPath}{allCasesList[index].dirExtension}/"
+
+            # Dataframe with all times, all dotSizes, for each wavelength
+            dfDots = pd.DataFrame({})
+            firstWVL = True
+            midpointTimes = []
+
+            # In situ times
+            insituStTime = allCasesList[index].isStend_t[0]
+            insituEndTime = allCasesList[index].isStend_t[1]
+            insituArray = pd.date_range(start=insituStTime,
+                                        end=insituEndTime,
+                                        freq="1min")
 
             for _wvl in wvlList:
                 wvlPath = f"{base_path}{_wvl}_{region}/"
@@ -1946,20 +1998,27 @@ def plot_super_summary(
                     f"{wvlPath}{insituParam}/{cadence}/{period[0]} - {period[1]}/IMF/Corr_matrix_all.npy"
                 )
 
-                # Get all correlations
+                # List of how big dots should be in comparison.
+                # Smallest dot is 0, when correlation does not reach 0.70.
+                # Does not grow more if multiple matches at same corr thr.
+                dotSizeList = []
+
+                # Find time and necessary size of dots
                 for height in range(len(corr_matrix[0, 0, :, 0])):
                     pearson = corr_matrix[:, :, height, 0]
                     spearman = corr_matrix[:, :, height, 1]
                     spearman[spearman == 0] = np.nan
                     valid = corr_matrix[:, :, height, 2]
 
-                    midpoint = corr_matrix[0, 0, height, 3]
-                    midpoint_time = allCasesList[index][0] + timedelta(
-                        seconds=midpoint)  # Ax xaxis
+                    if firstWVL:
+
+                        # Create the midpointTimes list to act as index
+                        midpoint = corr_matrix[0, 0, height, 3]
+                        midpoint_time = insituStTime + timedelta(
+                            seconds=midpoint)
+                        midpointTimes.append(midpoint_time)
 
                     # Transform to real time
-                    midpointRealTime = midpoint_time.to_pydatetime()
-
                     # Get rid of borders
                     pearson[pearson == 0] = np.nan
                     spearman[spearman == 0] = np.nan
@@ -1972,34 +2031,84 @@ def plot_super_summary(
                     # Necessary to cound how many are above each given threshold
                     # Could theoretically change this to just do circles above certain level
 
-                    # TODO: Make stacked bars duration of SolO data
-                    # TODO: Stack up AIA times
-                    for index, corr_thr in enumerate(corrThrPlotList):
+                    dotSize = 0
+                    for corrIndex, corr_thr in enumerate(corrThrPlotList):
                         _number_high_pe = len(
                             pvalid[np.abs(pvalid) >= corr_thr])
-                        corr_locations[height, index, 1] = _number_high_pe
+                        # corr_locations[height, index, 1] = _number_high_pe
                         _number_high_sp = len(
                             rvalid[np.abs(rvalid) >= corr_thr])
-                        corr_locations[height, index, 2] = _number_high_sp
+                        # corr_locations[height, index, 2] = _number_high_sp
 
-                    for index, corrLabel in enumerate(corrThrPlotList):
-                        pearson_array = corr_locations[height, :, 1]
-                        # TODO: Find highest index and use as size
+                        if _number_high_pe > 0:
+                            dotSize += 1
 
-    pass
+                    dotSizeList.append(dotSize)
 
-    # expandedWvlDic = collect_dfs_npys(
-    #     region=region,
-    #     isDf=dfInsitu,
-    #     lcDic=lcDic,
-    #     base_folder=base_folder,
-    #     period=period,
-    # )
-    # regionDic[region] = expandedWvlDic
+                dfDots[f"{_wvl}"] = dotSizeList
+                firstWVL = False
 
-    # base_folder = f"{unsafeEMDDataPath}{dirExtension}/"
+            dfDots.index = midpointTimes
 
-    # Make a single plot with all info
+            # Plot inside each of the squares
+            # ax.set_title(f"region {region}")
+            ax.plot(insituArray,
+                    np.repeat(aiaT, len(insituArray)),
+                    linewidth=2,
+                    color="black")
+
+            twHours = mdates.HourLocator(interval=10)
+            # h_fmt = mdates.DateFormatter("%d - %H:%M")
+            ax.xaxis.set_major_locator(twHours)
+            # ax.xaxis.set_major_formatter(h_fmt)
+
+            # # Now add yellow column
+            # vSWAxis = transformTimeAxistoVelocity(
+            #     insituArray,
+            #     originTime=aiaT,
+            #     SPCKernelName=SPCKernelName,
+            # )
+            # axV = ax.twiny()
+            # axV.plot(vSWAxis, np.repeat(aiaT, len(insituArray)), alpha=0)
+            # axV.invert_xaxis()
+            # axV.axis("off")
+
+            # # Add a span between low and high values
+            # if len(aiaTimes) == 2:
+            #     yMinSpd = 0.9 * index
+            #     yMaxSpd = yMinSpd + 0.1
+            # else:
+            #     yMinSpd = 0.15 * index + 0.03
+            #     yMaxSpd = yMinSpd + 0.03
+
+            # axV.axvspan(
+            #     xmin=spcSpeeds[0],
+            #     xmax=spcSpeeds[1],
+            #     ymin=yMinSpd,
+            #     ymax=yMaxSpd,
+            #     alpha=0.3,
+            #     color="orange",
+            # )
+
+            for _wvl in dfDots.columns:
+                alphaList = [1 if x > 0 else 0 for x in dfDots[_wvl].values]
+                ax.scatter(x=dfDots.index,
+                           y=np.repeat(aiaT, len(dfDots.index)),
+                           s=30 * dfDots[_wvl].values,
+                           alpha=alphaList,
+                           c=WVLColours[f"{_wvl}"])
+
+    fig.suptitle(insituParam)
+    fig.supxlabel(f"Time at SolO {longSpan[0].strftime(format='%Y/%m')}")
+    fig.supylabel("Time of Ejection from Source Surface = 2.5 Rsun")
+    plt.tight_layout()
+
+    plt.savefig(f"{unsafeEMDDataPath}{figName}_{insituParam}_Summary.png")
+
+    if showFig:
+        plt.show()
+
+    plt.close()
 
 
 def new_plot_format(
@@ -2130,6 +2239,7 @@ def new_plot_format(
         WVLValidity = {}
 
         # In situ plots
+        print(insituList)
         for i, isVar in enumerate(insituList):
             # Open up the isInfo from e.g., first WVL
             isTuple = r[f"{wvlList[0]}"][f"{isVar}"]
@@ -2141,7 +2251,8 @@ def new_plot_format(
             plt.ylabel(isVar)
 
             # Add the speed information for first plot
-            if isVar == "V_R":
+            if isVar == "V_R" or isVar == "Vr":
+                # Using start of AIA observations
                 vSWAxis = transformTimeAxistoVelocity(
                     isTuple.isData.index,
                     originTime=isTuple.shortTime[0].to_pydatetime(),
@@ -2229,7 +2340,10 @@ def new_plot_format(
         plt.tight_layout()
         if showFig:
             plt.show()
-        plt.savefig(f"{saveFolder}{region}.png")
+        print(f"Region {region}")
+        plt.savefig(
+            f"{saveFolder}{region}{'' if not addResidual else 'with_residual'}.png"
+        )
         plt.close()
 
 
