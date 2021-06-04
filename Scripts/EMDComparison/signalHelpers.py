@@ -29,6 +29,9 @@ vis = Visualisation()
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
 corrThrPlotList = np.arange(0.7, 1, 0.05)
 
+# Set general font size
+plt.rcParams['font.size'] = '16'
+
 # Dictionary which contains relevant axis for a 9x9 grid for each of the regions
 axDic = {
     "11": [0, 0],
@@ -1921,18 +1924,18 @@ def compareTS(
 
 
 def plot_super_summary(
-        allCasesList,
-        longSpan,
-        wvlList,
-        insituParam,
-        regions,
-        unsafeEMDDataPath,
-        period,
-        SPCKernelName,
-        cadence="60s",
-        spcSpeeds=(None, None),
-        showFig=False,
-        figName="",
+    allCasesList,
+    longSpan,
+    wvlList,
+    insituParam,
+    regions,
+    unsafeEMDDataPath,
+    period,
+    SPCKernelName,
+    cadence="60s",
+    speedSuper=300,
+    showFig=False,
+    figName="",
 ):
     """Plots a "super" summary with info about all selected regions
 
@@ -1977,6 +1980,7 @@ def plot_super_summary(
         for case in allCasesList:
             aiaTimes.append(case.rsStend_t[0])
 
+        list_times_same_speed = []
         for index, aiaT in enumerate(aiaTimes):
             base_path = f"{unsafeEMDDataPath}{allCasesList[index].dirExtension}/"
 
@@ -2051,54 +2055,38 @@ def plot_super_summary(
             dfDots.index = midpointTimes
 
             # Plot inside each of the squares
-            # ax.set_title(f"region {region}")
             ax.plot(insituArray,
                     np.repeat(aiaT, len(insituArray)),
                     linewidth=2,
                     color="black")
 
+            Vaxis = transformTimeAxistoVelocity(
+                insituArray,
+                originTime=aiaT,
+                SPCKernelName=SPCKernelName,
+            )
+            closest_index = (np.abs(Vaxis - speedSuper)).argmin()
+            closest_time = insituArray[closest_index]
+            list_times_same_speed.append(closest_time)
+
             twHours = mdates.HourLocator(interval=10)
-            # h_fmt = mdates.DateFormatter("%d - %H:%M")
             ax.xaxis.set_major_locator(twHours)
-            # ax.xaxis.set_major_formatter(h_fmt)
-
-            # # Now add yellow column
-            # vSWAxis = transformTimeAxistoVelocity(
-            #     insituArray,
-            #     originTime=aiaT,
-            #     SPCKernelName=SPCKernelName,
-            # )
-            # axV = ax.twiny()
-            # axV.plot(vSWAxis, np.repeat(aiaT, len(insituArray)), alpha=0)
-            # axV.invert_xaxis()
-            # axV.axis("off")
-
-            # # Add a span between low and high values
-            # if len(aiaTimes) == 2:
-            #     yMinSpd = 0.9 * index
-            #     yMaxSpd = yMinSpd + 0.1
-            # else:
-            #     yMinSpd = 0.15 * index + 0.03
-            #     yMaxSpd = yMinSpd + 0.03
-
-            # axV.axvspan(
-            #     xmin=spcSpeeds[0],
-            #     xmax=spcSpeeds[1],
-            #     ymin=yMinSpd,
-            #     ymax=yMaxSpd,
-            #     alpha=0.3,
-            #     color="orange",
-            # )
 
             for _wvl in dfDots.columns:
                 alphaList = [1 if x > 0 else 0 for x in dfDots[_wvl].values]
                 ax.scatter(x=dfDots.index,
                            y=np.repeat(aiaT, len(dfDots.index)),
-                           s=30 * dfDots[_wvl].values,
+                           s=25 * (dfDots[_wvl].values)**2,
                            alpha=alphaList,
                            c=WVLColours[f"{_wvl}"])
 
-    fig.suptitle(insituParam)
+        ax.plot(
+            list_times_same_speed,
+            aiaTimes,
+            color="orange",
+        )
+
+    fig.suptitle(f"{insituParam} - angled bar at {speedSuper} km/s")
     fig.supxlabel(f"Time at SolO {longSpan[0].strftime(format='%Y/%m')}")
     fig.supylabel("Time of Ejection from Source Surface = 2.5 Rsun")
     plt.tight_layout()
@@ -2228,7 +2216,7 @@ def new_plot_format(
                                 gridspec_kw={'width_ratios': [4, 1]})
         fig.suptitle(
             f'Region {region} -> AIA: {lcDic[wvlList[0]].index[0].strftime(format="%Y-%m-%d %H:%M")}',
-            size=20)
+            size=25)
 
         # Delete all axis. If used they are shown
         for ax in axs:
@@ -2248,7 +2236,7 @@ def new_plot_format(
             fig.add_subplot(axIS)
             plt.plot(isTuple.isData, color="black")
             # axIS.set_xlim(isTuple.isData.index[0], isTuple.isData.index[-1])
-            plt.ylabel(isVar)
+            plt.ylabel(isVar, fontsize=20)
 
             # Add the speed information for first plot
             if isVar == "V_R" or isVar == "Vr":
@@ -2285,7 +2273,10 @@ def new_plot_format(
 
             if i == n_insitu - 1:
                 axIS.xaxis.set_major_formatter(
-                    mdates.DateFormatter("%d %H:%M"))
+                    mdates.DateFormatter("%Y-%m-%d %H:%M"))
+
+                axIS.xaxis.set_minor_locator(mdates.HourLocator(interval=1))
+                axIS.xaxis.set_major_locator(mdates.HourLocator(interval=6))
 
         # Plot all lightcurves
         wvlDataLabel = "Det. Lcurve"
@@ -2314,10 +2305,12 @@ def new_plot_format(
                 wvlTime,
                 wvlEMD[0],
                 color=WVLColours[f"{wvl}"],
-                label=wvlDataLabel + f" {wvl} Ang.",
                 alpha=0.7,
             )
 
+            plt.title(wvlDataLabel + f" {wvl} Ang.",
+                      color=WVLColours[f"{wvl}"],
+                      fontsize=20)
             if addEMDLcurves:
                 for k, wvlemd in enumerate(wvlEMD[1:-1]):
                     if int(WVLValidity[f"{wvl}"][k]) == 1:
@@ -2326,8 +2319,6 @@ def new_plot_format(
                             wvlemd,
                             alpha=0.9,
                         )
-
-            plt.legend()
 
             if j == n_wvl - 1:
                 axRE.xaxis.set_major_formatter(Hmin)

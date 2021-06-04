@@ -20,13 +20,13 @@ objCad = 60  # Objective cadence in seconds for comparisons
 WVLLIST = [94, 193, 211]
 PERIODMINMAX = [3, 20]
 DELETE = False
-SHOWFIG = False
+SHOWFIG = True
 FILTERP = True
 PLOT_ALL_TOGETHER = True
 SUPER_SUMMARY_PLOT = True
 ADDRESIDUAL = False
-# accelerated = 1
-accelerated = 4 / 3
+accelerated = 1
+# accelerated = 4 / 3
 
 # If necessary to do PSF test (currently only good for 193, 27 23:00)
 # psf = False
@@ -312,6 +312,7 @@ def combinedPlot(superSummaryPlot=False):
         cases = pickle.load(f)
 
     figName = "accelerated" if accelerated == 4 / 3 else "constant"
+    speedSuper = 200 if accelerated == 4 / 3 else 300
 
     # We set a margin around original obs.
     aiaTimesList, soloTimesList, caseNamesList, refLocations = extractDiscreteExamples(
@@ -361,7 +362,7 @@ def combinedPlot(superSummaryPlot=False):
                 unsafeEMDDataPath=UNSAFE_EMD_DATA_PATH,
                 period=PERIODMINMAX,
                 SPCKernelName="solo",
-                spcSpeeds=(soloLO, soloHI),
+                speedSuper=speedSuper,
                 showFig=SHOWFIG,
                 figName=figName,
             )
