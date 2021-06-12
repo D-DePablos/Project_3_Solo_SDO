@@ -2,12 +2,14 @@
 """
 from datetime import datetime
 import pickle
+
 cases = [
     {
         "aiaTime": datetime(2020, 5, 28, 11, 0),
         "matchTime": datetime(2020, 5, 31, 20, 0),
         "soloDurn": 1,
-        "caseName": "AIA_28th_T11"
+        "caseName": "AIA_28th_T11",
+        "MARGINHOURSSOLO": 12,
     },
     {
         "aiaTime": datetime(2020, 5, 28, 9, 0),
@@ -52,7 +54,8 @@ accCases = [
         "aiaTime": datetime(2020, 5, 27, 8, 0),
         "matchTime": datetime(2020, 5, 31, 20, 0),
         "soloDurn": 2,
-        "caseName": "ACC_AIA_27th_T08"
+        "caseName": "ACC_AIA_27th_T08",
+        "MARGINHOURSSOLO": 12,
     },
     {
         "aiaTime": datetime(2020, 5, 27, 11, 0),
@@ -63,11 +66,11 @@ accCases = [
 ]
 
 with open(
-        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/consCases.pickle",
+        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/consCases.pickle",
         "wb") as f:
     pickle.dump(cases, f)
 
 with open(
-        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/accCases.pickle",
+        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/accCases.pickle",
         "wb") as f:
     pickle.dump(accCases, f)

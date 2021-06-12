@@ -1,5 +1,4 @@
 BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
-UNSAFE_EMD_DATA_PATH = f"{BASE_PATH}unsafe/EMD_Data/"
 
 from collections import namedtuple
 from sys import path
@@ -15,33 +14,49 @@ from Plasma.SoloData import SoloManager
 from astropy import constants as const
 from astropy import units as u
 
+# Set up UNSAFE_EMD_DATA_PATH: global variable
+
+newCases = True
+UNSAFE_EMD_DATA_PATH = f"{BASE_PATH}unsafe/EMD_Data/"
+UNSAFE_EMD_DATA_PATH = UNSAFE_EMD_DATA_PATH if not newCases else f"{UNSAFE_EMD_DATA_PATH}newCases_allSOLO/"
+makedirs(UNSAFE_EMD_DATA_PATH, exist_ok=True)
+
 # Set parameters here
 objCad = 60  # Objective cadence in seconds for comparisons
 WVLLIST = [94, 193, 211]
 PERIODMINMAX = [3, 20]
-DELETE = False
-SHOWFIG = True
+DELETE = False  # I believe this is not working at all as intended
+SHOWFIG = False
 FILTERP = True
-PLOT_ALL_TOGETHER = True
+PLOT_ALL_TOGETHER = False
 SUPER_SUMMARY_PLOT = True
 ADDRESIDUAL = False
+
 accelerated = 1
 # accelerated = 4 / 3
 
-# If necessary to do PSF test (currently only good for 193, 27 23:00)
-# psf = False
-
 # Solar Orbiter Data requires start, end
 start = datetime(2020, 5, 30, 12)
-end = datetime(2020, 6, 2)
+end = datetime(2020, 6, 1, 13, 32)
 
 # Lcurve regions
 # lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23", "11:13_21:23"]
 
 # Do only 9 for square plots
 lcRegs = ["11", "12", "13", "16", "17", "18", "21", "22", "23"]
+# lcRegs = ["11"]
 
-# lcRegs = ["11:13_21:23"]
+# Open the cases file
+caseName = "accCases" if accelerated == 4 / 3 else "consCases"
+caseName = "newCases_ALLSOLO" if newCases else caseName
+
+with open(
+        f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/{caseName}.pickle",
+        "rb") as f:
+    import pickle
+    cases = pickle.load(f)
+
+MARGINHOURSSOLO = cases[0]["MARGINHOURSSOLO"]
 
 
 # Import the following functions into the AnySpacecraft_data script
@@ -222,32 +237,15 @@ def first_DeriveAndPlotSeparately():
         )
         lc.df = lc.df.interpolate()  # Interpolate after forming lc object
 
-        # Open the cases file
-        caseName = "accCases" if accelerated == 4 / 3 else "consCases"
-        with open(
-                f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/{caseName}.pickle",
-                "rb") as f:
-            import pickle
-            cases = pickle.load(f)
-
         # We set a margin around original obs.
         aiaTimesList, soloTimesList, caseNamesList, refLocations = extractDiscreteExamples(
             cases,
-            margin=12,
+            margin=MARGINHOURSSOLO,
         )
 
         for index, aiaTimes in enumerate(aiaTimesList):
             # Only for the 27th, 23
             dirName = f"""{caseNamesList[index]}"""
-
-            # Here we produce relevant files and derive EMDs
-            # if aiaTimes[0].hour == 23:
-            #     if psf:
-            #         dirName = "PSF_TEST_27th_23"
-
-            #         if WAVELENGTH == 193:
-            #             lc.psf_test()
-            #             lc.df = lc.df.interpolate()
 
             compareLcurvesToSolO(
                 remoteObj=lc,
@@ -303,21 +301,12 @@ def combinedPlot(superSummaryPlot=False):
     insituObjectVars = ["V_R", "Mf", "N", "T"]
     insituObject.df = insituObject.df[insituObjectVars]
 
-    # Open the cases file
-    caseName = "accCases" if accelerated == 4 / 3 else "consCases"
-    with open(
-            f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/{caseName}.pickle",
-            "rb") as f:
-        import pickle
-        cases = pickle.load(f)
-
     figName = "accelerated" if accelerated == 4 / 3 else "constant"
-    speedSuper = 200 if accelerated == 4 / 3 else 300
 
     # We set a margin around original obs.
     aiaTimesList, soloTimesList, caseNamesList, refLocations = extractDiscreteExamples(
         cases,
-        margin=12,
+        margin=MARGINHOURSSOLO,
     )
 
     # When necessary to make summary of all summaries
@@ -339,14 +328,7 @@ def combinedPlot(superSummaryPlot=False):
                 Casetuple(dirExtension, (_isT[0], _isT[1]),
                           (aiaTimes[0], aiaTimes[1])))
 
-        # ShortSpan not required as number of aiaTimes is most relevant
-        # Think about what information is absolutely necessary, e.g.,
-        # Start and end time of AIA, SolO - DONE
-        # Correlations of SolO parameter(!) for each time - DOING
-        # Total SolO span - DONE
-
-        # Find how to plot circles depending on correlation value
-        # Figure out whether to show yellow bar
+        # Figure out whether to show yellow bar - DONE
 
         insituObject.df.columns = [
             "SolO_" + param for param in insituObject.df.columns
@@ -362,7 +344,8 @@ def combinedPlot(superSummaryPlot=False):
                 unsafeEMDDataPath=UNSAFE_EMD_DATA_PATH,
                 period=PERIODMINMAX,
                 SPCKernelName="solo",
-                speedSuper=speedSuper,
+                speedSuper=soloHI,
+                speedSuperLow=soloLO,
                 showFig=SHOWFIG,
                 figName=figName,
             )
@@ -381,14 +364,6 @@ def combinedPlot(superSummaryPlot=False):
                     aiaTimes[0]:aiaTimes[1]].copy()
 
             dirExtension = f"{caseNamesList[index]}"
-            ## When required to do PSF test
-            # if aiaTimes[0].hour == 23:
-
-            # if psf:
-            #     dirExtension = "PSF_TEST_27th_23"
-            #     lcDic[f"{193}"].psf_test()
-            #     lcDicCut[f"{193}"] = lcDic[f"{193}"].df.interpolate()
-
             base_folder = f"{UNSAFE_EMD_DATA_PATH}{dirExtension}/"
             new_plot_format(dfInsitu=dfInsituCut,
                             lcDic=lcDicCut,

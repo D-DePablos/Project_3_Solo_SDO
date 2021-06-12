@@ -27,7 +27,9 @@ emd = EMD()
 vis = Visualisation()
 
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
-corrThrPlotList = np.arange(0.7, 1, 0.05)
+alphaWVL = {"94": 0.9, "171": 0.9, "193": 0.7, "211": 0.5}
+corrThrPlotList = np.arange(0.70, 1, 0.05)
+# corrThrPlotList = [0.35]
 
 # Set general font size
 plt.rcParams['font.size'] = '16'
@@ -1164,7 +1166,7 @@ class SignalFunctions(Signal):
             savePath=None,
             plot_heatmaps=False,
             minCorrThrPlot=0.7,
-            corrThrPlotList=np.arange(0.7, 1.01, 0.1),
+            corrThrPlotList=corrThrPlotList,
             margin_hours=0.5,
             bar_width=1.2,
             filterPeriods=True,
@@ -1655,7 +1657,6 @@ class SignalFunctions(Signal):
             expStart, expEnd = expLocation["start"], expLocation["end"]
             # expMid = expStart + (expEnd - expStart) / 2
 
-            # TODO: CHECK WHAT EXPECTEDLOCATIONLIST DOES
             # Extract the Velocities
             vSWAxis = transformTimeAxistoVelocity(
                 time_axis,
@@ -1890,11 +1891,15 @@ def compareTS(
                 otherSigFunc.saveFolder = otherWinFolder
                 selfSigFunc.saveFolder = selfWinFolder
 
+                # TODO: Highly suspicious code here. Likely to delete just one variable one time
                 if delete and not deleted_already:
                     from shutil import rmtree
                     print("Deleting otherSigFunc and selfSigFunc folders")
+                    print(otherSigFunc.saveFolder)
+                    print(selfSigFunc.saveFolder)
                     rmtree(otherSigFunc.saveFolder, ignore_errors=True)
                     rmtree(selfSigFunc.saveFolder, ignore_errors=True)
+                    deleted_already = True
 
                 selfSigFunc.generate_windows(
                     other=otherSigFunc,
@@ -1934,6 +1939,7 @@ def plot_super_summary(
     SPCKernelName,
     cadence="60s",
     speedSuper=300,
+    speedSuperLow=200,
     showFig=False,
     figName="",
 ):
@@ -1949,6 +1955,7 @@ def plot_super_summary(
         SPCKernelName ([type], optional): SpacecraftKernel name for psp or solo. Defaults to None.
         showFig (bool, optional): [description]. Defaults to False.
     """
+    from matplotlib.lines import Line2D
 
     # Gapless subplots figure
     # import matplotlib.pyplot as plt
@@ -1981,6 +1988,8 @@ def plot_super_summary(
             aiaTimes.append(case.rsStend_t[0])
 
         list_times_same_speed = []
+        list_times_same_speed_LOW = []
+
         for index, aiaT in enumerate(aiaTimes):
             base_path = f"{unsafeEMDDataPath}{allCasesList[index].dirExtension}/"
 
@@ -1996,6 +2005,7 @@ def plot_super_summary(
                                         end=insituEndTime,
                                         freq="1min")
 
+            print(f"{insituArray[0]}  \n   TO     \n    {insituArray[-1]}")
             for _wvl in wvlList:
                 wvlPath = f"{base_path}{_wvl}_{region}/"
                 corr_matrix = np.load(
@@ -2069,29 +2079,86 @@ def plot_super_summary(
             closest_time = insituArray[closest_index]
             list_times_same_speed.append(closest_time)
 
-            twHours = mdates.HourLocator(interval=10)
-            ax.xaxis.set_major_locator(twHours)
+            # Upper end speed
+            closest_index_LOW = (np.abs(Vaxis - speedSuperLow)).argmin()
+            closest_time_LOW = insituArray[closest_index_LOW]
+            list_times_same_speed_LOW.append(closest_time_LOW)
 
+            locator = mdates.HourLocator([0, 12])
+            formatter = mdates.ConciseDateFormatter(locator)
+            ax.xaxis.set_major_locator(locator)
+            ax.xaxis.set_major_formatter(formatter)
+
+            shortlocator = mdates.AutoDateLocator()
+            shortformatter = mdates.ConciseDateFormatter(locator)
+            ax.yaxis.set_major_locator(shortlocator)
+            ax.yaxis.set_major_formatter(shortformatter)
             for _wvl in dfDots.columns:
-                alphaList = [1 if x > 0 else 0 for x in dfDots[_wvl].values]
-                ax.scatter(x=dfDots.index,
-                           y=np.repeat(aiaT, len(dfDots.index)),
-                           s=25 * (dfDots[_wvl].values)**2,
-                           alpha=alphaList,
-                           c=WVLColours[f"{_wvl}"])
+                alphaList = [
+                    alphaWVL[_wvl] if x > 0 else 0 for x in dfDots[_wvl].values
+                ]
+                _msize = 30 * (dfDots[_wvl].values)**2
+                if len(corrThrPlotList) == 1:
+                    _msize = 100
 
+                ax.scatter(
+                    x=dfDots.index,
+                    y=np.repeat(aiaT, len(dfDots.index)),
+                    s=_msize,
+                    alpha=alphaList,
+                    c=WVLColours[f"{_wvl}"],
+                )
+
+        # Plot diagonal lines which highlight minimum and maximum V
         ax.plot(
             list_times_same_speed,
             aiaTimes,
             color="orange",
+            alpha=0.6,
         )
 
-    fig.suptitle(f"{insituParam} - angled bar at {speedSuper} km/s")
-    fig.supxlabel(f"Time at SolO {longSpan[0].strftime(format='%Y/%m')}")
-    fig.supylabel("Time of Ejection from Source Surface = 2.5 Rsun")
-    plt.tight_layout()
+        ax.plot(
+            list_times_same_speed_LOW,
+            aiaTimes,
+            color="orange",
+            alpha=0.6,
+        )
 
-    plt.savefig(f"{unsafeEMDDataPath}{figName}_{insituParam}_Summary.png")
+        ax.fill_betweenx(aiaTimes,
+                         list_times_same_speed,
+                         list_times_same_speed_LOW,
+                         color="orange",
+                         alpha=0.2)
+
+    # Custom legend
+    legend_elements = []
+    for j, corrThr in enumerate(corrThrPlotList):
+        _mkrsize = 7 + j * 3
+        # Should be 0 0
+        _legendElement = Line2D([list_times_same_speed_LOW[0]], [aiaTimes[0]],
+                                marker='o',
+                                color='w',
+                                label=f'{corrThr:.02f}',
+                                markerfacecolor='k',
+                                markersize=_mkrsize)
+
+        legend_elements.append(_legendElement)
+
+    legend = fig.legend(handles=legend_elements)
+    fig.suptitle(
+        f"{insituParam} : expected velocities {speedSuper} - {speedSuperLow} km/s in yellow"
+    )
+    fig.supxlabel(f"Time at SolO")
+    fig.supylabel("Time at Source Surface = 2.5 Rsun")
+
+    # plt.tight_layout()
+
+    if len(corrThrPlotList) == 1:
+        plt.savefig(
+            f"{unsafeEMDDataPath}{corrThrPlotList[0]:.02f}{figName}_{insituParam}_Summary.png"
+        )
+    else:
+        plt.savefig(f"{unsafeEMDDataPath}{figName}_{insituParam}_Summary.png")
 
     if showFig:
         plt.show()
@@ -2275,8 +2342,8 @@ def new_plot_format(
                 axIS.xaxis.set_major_formatter(
                     mdates.DateFormatter("%Y-%m-%d %H:%M"))
 
-                axIS.xaxis.set_minor_locator(mdates.HourLocator(interval=1))
-                axIS.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+                axIS.xaxis.set_minor_locator(mdates.HourLocator(interval=3))
+                axIS.xaxis.set_major_locator(mdates.HourLocator(interval=12))
 
         # Plot all lightcurves
         wvlDataLabel = "Det. Lcurve"
