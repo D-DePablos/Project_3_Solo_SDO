@@ -28,8 +28,8 @@ vis = Visualisation()
 
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
 alphaWVL = {"94": 0.9, "171": 0.9, "193": 0.7, "211": 0.5}
-corrThrPlotList = np.arange(0.70, 1, 0.05)
-# corrThrPlotList = [0.35]
+# corrThrPlotList = np.arange(0.70, 1, 0.05)
+corrThrPlotList = [0.85]
 
 # Set general font size
 plt.rcParams['font.size'] = '16'
@@ -1999,13 +1999,13 @@ def plot_super_summary(
             midpointTimes = []
 
             # In situ times
-            insituStTime = allCasesList[index].isStend_t[0]
-            insituEndTime = allCasesList[index].isStend_t[1]
+            insituStTime = longSpan[0]
+            insituEndTime = longSpan[1]
             insituArray = pd.date_range(start=insituStTime,
                                         end=insituEndTime,
                                         freq="1min")
 
-            print(f"{insituArray[0]}  \n   TO     \n    {insituArray[-1]}")
+            # print(f"{insituArray[0]}  \n   TO     \n    {insituArray[-1]}")
             for _wvl in wvlList:
                 wvlPath = f"{base_path}{_wvl}_{region}/"
                 corr_matrix = np.load(

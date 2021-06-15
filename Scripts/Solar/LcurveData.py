@@ -50,6 +50,29 @@ class LcurveManager:
         return self.df
 
 
+def plotLcurves(lcurveDic, column="11:13_21:23", vspanStartEnd=(None, None)):
+    """
+    Plots lightcurves in fancy manner
+    """
+
+    import matplotlib.pyplot as plt
+
+    fig, axs = plt.subplots(3, 1)
+
+    axs[0].plot(lcurveDic["94"].df[f"{column}"])
+    axs[1].plot(lcurveDic["193"].df[f"{column}"])
+    axs[2].plot(lcurveDic["211"].df[f"{column}"])
+
+    if vspanStartEnd[0] != None:
+        for ax in axs:
+            ax.vspan(vspanStartEnd)
+
+    plt.show()
+
+
 if __name__ == "__main__":
-    lcDF = LcurveManager()
-    print(lcDF.psf_test())
+    lcDic = {}
+    for WVL in [94, 193, 211]:
+        lcDic[f"{WVL}"] = LcurveManager(wavelength=WVL)
+
+    plotLcurves(lcDic)

@@ -20,7 +20,7 @@ def main():
     AIA_dt = 1  # How many hours to advance
 
     SOLO_base = datetime(2020, 5, 31, 20, 0)
-    SOLO_end = datetime(2020, 6, 1, 13, 31)
+    SOLO_end = datetime(2020, 6, 1, 13, 30)
 
     cases = []
     i = 0

@@ -28,7 +28,7 @@ PERIODMINMAX = [3, 20]
 DELETE = False  # I believe this is not working at all as intended
 SHOWFIG = False
 FILTERP = True
-PLOT_ALL_TOGETHER = False
+PLOT_ALL_TOGETHER = True
 SUPER_SUMMARY_PLOT = True
 ADDRESIDUAL = False
 
