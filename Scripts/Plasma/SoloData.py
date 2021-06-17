@@ -59,10 +59,8 @@ class SoloManager:
                 _swe_df = _swe_df.append(_df)
 
         # Mask values outside of times to nan
-        print(_swe_df)
         mask = (_swe_df.index > times[0]) & (_swe_df.index <= times[1])
         _swe_df = _swe_df.loc[mask]
-        print(_swe_df)
         # NAN and interpolate values where validity < 3
         _swe_df[_swe_df["validity"] < 3] = np.nan
         del _swe_df["validity"]

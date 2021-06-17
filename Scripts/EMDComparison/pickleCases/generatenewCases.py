@@ -15,8 +15,8 @@ midSOLO = start + timedelta(seconds=(end - start).total_seconds() / 2)
 
 def main():
 
-    AIA_base = datetime(2020, 5, 27, 23, 30)
-    AIA_max = datetime(2020, 5, 28, 13, 29)
+    AIA_base = datetime(2020, 5, 27, 19, 30)
+    AIA_max = datetime(2020, 5, 28, 13, 1)
     AIA_dt = 1  # How many hours to advance
 
     SOLO_base = datetime(2020, 5, 31, 20, 0)
@@ -43,19 +43,6 @@ def main():
             "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/newCases_ALLSOLO.pickle",
             "wb") as f:
         pickle.dump(cases, f)
-
-    for case in cases:
-        print(f"{case['matchTime']} \n")
-
-
-def updateCases(case, file):
-    """This function updates a case to have proper start and endTime, based on observations
-
-    Args:
-        case ([type]): [description]
-        file ([type]): [description]
-    """
-    pass
 
 
 if __name__ == "__main__":

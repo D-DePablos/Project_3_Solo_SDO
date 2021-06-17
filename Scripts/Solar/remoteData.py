@@ -60,7 +60,7 @@ class RemoteManager:
         Pass a map, optionally field lines and another map projected on top
         """
         import matplotlib.pyplot as plt
-        plt.figure(figsize=(8, 8))
+        plt.figure(figsize=(9, 9))
         ax = plt.subplot(1, 1, 1, projection=map)
         map.plot(ax)
 
@@ -82,34 +82,38 @@ class RemoteManager:
                             3600):
                         # For each of the field lines, compare to the time of the original map
 
+                        # Field line
                         ax.plot_coord(
                             fline.coords.helioprojective,
-                            # color='blue',
-                            linewidth=1,
+                            color='blue',
+                            linewidth=5,
                             alpha=0.4,
                             label=f"{spcTime.value}",
                         )
                         f.write(
                             f"{fline.solar_footpoint.helioprojective.Tx} | {fline.solar_footpoint.helioprojective.Ty} | {fline.solar_footpoint.lon} \n"
                         )
-                        color = "white" if np.abs(
+
+                        # Footpoints  - White if in front of disk
+                        color = "black" if np.abs(
                             fline.solar_footpoint.heliographic_stonyhurst.lon.
                             value) < 90 else "red"
                         ax.plot_coord(fline.solar_footpoint.helioprojective,
                                       color=color,
                                       marker="x",
-                                      linewidth=0,
-                                      markersize=5)
+                                      linewidth=5,
+                                      markersize=15)
                 plt.legend()
-                title = title + f"| flines (SPC time) -> Margin {margin} hours vs AIA"
+                # title = title + f"| flines (SPC time) -> Margin {margin} hours vs AIA"
                 f.close()
 
         plt.xlim(2200, 3800)
         plt.ylim(2200, 3800)
         ax.set_title(title)
-        plt.savefig(
-            f"{kwargs['savePath']}AIA{int(map.wavelength.value)}{map.date.datetime.strftime('%Y-%m-%d_%H-%M')}.png"
-        )
+        plt.tight_layout()
+        plt.savefig(f"{kwargs['savePath']}{kwargs['index']:03d}.png")
+        if "show" in kwargs:
+            plt.show()
         plt.close()
 
 
@@ -127,7 +131,9 @@ class GONGManager(RemoteManager):
     def downloadData(self):
         results = Fido.search(self.attrsTime, self.instrument)
 
-        self.file = Fido.fetch(results[0], path=self.path)  # Fetching only one
+        closest = results["gong"][0]
+        print(closest)
+        self.file = Fido.fetch(closest, path=self.path)  # Fetching only one
         gongmap = Map(self.file)
         self.map = Map(gongmap.data - np.mean(gongmap.data), gongmap.meta)
         return self.map

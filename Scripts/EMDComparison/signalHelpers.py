@@ -28,8 +28,9 @@ vis = Visualisation()
 
 WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
 alphaWVL = {"94": 0.9, "171": 0.9, "193": 0.7, "211": 0.5}
-# corrThrPlotList = np.arange(0.70, 1, 0.05)
-corrThrPlotList = [0.85]
+corrThrPlotList = np.arange(0.70, 1, 0.05)
+# corrThrPlotList = np.arange(0.85, 0.901, 0.05)
+# corrThrPlotList = [0.65]
 
 # Set general font size
 plt.rcParams['font.size'] = '16'
@@ -2097,7 +2098,7 @@ def plot_super_summary(
                 alphaList = [
                     alphaWVL[_wvl] if x > 0 else 0 for x in dfDots[_wvl].values
                 ]
-                _msize = 30 * (dfDots[_wvl].values)**2
+                _msize = 50 * (dfDots[_wvl].values)**2
                 if len(corrThrPlotList) == 1:
                     _msize = 100
 
@@ -2133,7 +2134,7 @@ def plot_super_summary(
     # Custom legend
     legend_elements = []
     for j, corrThr in enumerate(corrThrPlotList):
-        _mkrsize = 7 + j * 3
+        _mkrsize = 7 + j * 4
         # Should be 0 0
         _legendElement = Line2D([list_times_same_speed_LOW[0]], [aiaTimes[0]],
                                 marker='o',
@@ -2294,7 +2295,6 @@ def new_plot_format(
         WVLValidity = {}
 
         # In situ plots
-        print(insituList)
         for i, isVar in enumerate(insituList):
             # Open up the isInfo from e.g., first WVL
             isTuple = r[f"{wvlList[0]}"][f"{isVar}"]

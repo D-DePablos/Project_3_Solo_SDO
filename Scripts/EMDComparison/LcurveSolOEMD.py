@@ -6,7 +6,7 @@ from sys import path
 path.append(f"{BASE_PATH}Scripts/")
 """Main routine to compare remote and in-situ observations"""
 from os import makedirs
-from signalHelpers import compareTS, new_plot_format, plot_super_summary
+from EMDComparison.signalHelpers import compareTS, new_plot_format, plot_super_summary
 import numpy as np
 from datetime import datetime, timedelta
 from Solar.LcurveData import LcurveManager
@@ -28,7 +28,11 @@ PERIODMINMAX = [3, 20]
 DELETE = False  # I believe this is not working at all as intended
 SHOWFIG = False
 FILTERP = True
+
+# Plot all in-situ variables?
 PLOT_ALL_TOGETHER = True
+
+# Plot summary?
 SUPER_SUMMARY_PLOT = True
 ADDRESIDUAL = False
 
@@ -75,7 +79,7 @@ def compareLcurvesToSolO(
     expectedLocationList=False,
     PeriodMinMax=[1, 20],
     filterPeriods=False,
-    delete=True,
+    delete=DELETE,
     showFig=True,
     renormalize=False,
     DETREND_BOX_WIDTH=None,
@@ -244,7 +248,7 @@ def first_DeriveAndPlotSeparately():
         )
 
         for index, aiaTimes in enumerate(aiaTimesList):
-            # Only for the 27th, 23
+
             dirName = f"""{caseNamesList[index]}"""
 
             compareLcurvesToSolO(
@@ -275,7 +279,10 @@ def combinedPlot(superSummaryPlot=False):
     for _wvl in WVLLIST:
         lcDic[f"{_wvl}"] = LcurveManager(objCad=objCad, wavelength=_wvl)
         lcDic[f"{_wvl}"].df = lcDic[f"{_wvl}"].df.interpolate()
-        del lcDic[f"{_wvl}"].df["Unnamed: 0"]
+        try:
+            del lcDic[f"{_wvl}"].df["Unnamed: 0"]
+        except KeyError:
+            pass
 
     # Solar Orbiter Data
     insituObject = SoloManager(
