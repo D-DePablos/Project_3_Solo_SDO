@@ -32,6 +32,13 @@ corrThrPlotList = np.arange(0.70, 1, 0.05)
 # corrThrPlotList = np.arange(0.85, 0.901, 0.05)
 # corrThrPlotList = [0.65]
 
+titleDic = {
+    "SolO_V_R": "Vsw",
+    "SolO_T": "Tp",
+    "SolO_N": "#p",
+    "SolO_Mf": "Mass Flux",
+}
+
 # Set general font size
 plt.rcParams['font.size'] = '16'
 
@@ -443,6 +450,7 @@ class Signal:
     """
     This class creates a Signal and provides functions to deform and extract it.
     """
+
     def __init__(
         self,
         saveFolder=None,
@@ -759,6 +767,7 @@ class SignalFunctions(Signal):
     """
     Class to give functionality to a given signal object. Allows for things like EMD
     """
+
     def __init__(
         self,
         signal,
@@ -1653,11 +1662,6 @@ class SignalFunctions(Signal):
         ax2.set_ylabel("Highest corr. found")
 
         if showSpeed:
-            assert expectedLocationList != False, "No expected location list"
-            expLocation = expectedLocationList[0]
-            expStart, expEnd = expLocation["start"], expLocation["end"]
-            # expMid = expStart + (expEnd - expStart) / 2
-
             # Extract the Velocities
             vSWAxis = transformTimeAxistoVelocity(
                 time_axis,
@@ -1831,12 +1835,12 @@ def compareTS(
 ):
     """
     Takes two dataframes sampled at same cadence
-    
+
     dfSelf is a dataframe
     dfOther is another dataFrame
     cadSelf, cadOther for cadence
     labelOther is the label to be shown on second dataset
-    
+
     winDispList is a list of window displacements, in seconds
     corrThrPlotList is 
 
@@ -1941,6 +1945,7 @@ def plot_super_summary(
     cadence="60s",
     speedSuper=300,
     speedSuperLow=200,
+    speedAVG=250,
     showFig=False,
     figName="",
 ):
@@ -1989,6 +1994,7 @@ def plot_super_summary(
             aiaTimes.append(case.rsStend_t[0])
 
         list_times_same_speed = []
+        list_times_vavg = []
         list_times_same_speed_LOW = []
 
         for index, aiaT in enumerate(aiaTimes):
@@ -2068,29 +2074,37 @@ def plot_super_summary(
             # Plot inside each of the squares
             ax.plot(insituArray,
                     np.repeat(aiaT, len(insituArray)),
-                    linewidth=2,
-                    color="black")
+                    linewidth=1.2,
+                    color="black",
+                    alpha=0.5)
 
             Vaxis = transformTimeAxistoVelocity(
                 insituArray,
                 originTime=aiaT,
                 SPCKernelName=SPCKernelName,
             )
+
+            # Highest speeds
             closest_index = (np.abs(Vaxis - speedSuper)).argmin()
             closest_time = insituArray[closest_index]
             list_times_same_speed.append(closest_time)
 
-            # Upper end speed
+            # Lower speeds
             closest_index_LOW = (np.abs(Vaxis - speedSuperLow)).argmin()
             closest_time_LOW = insituArray[closest_index_LOW]
             list_times_same_speed_LOW.append(closest_time_LOW)
+
+            # Average, shown in red
+            closest_index_avg = (np.abs(Vaxis - speedAVG)).argmin()
+            closest_time_avg = insituArray[closest_index_avg]
+            list_times_vavg.append(closest_time_avg)
 
             locator = mdates.HourLocator([0, 12])
             formatter = mdates.ConciseDateFormatter(locator)
             ax.xaxis.set_major_locator(locator)
             ax.xaxis.set_major_formatter(formatter)
 
-            shortlocator = mdates.AutoDateLocator()
+            shortlocator = mdates.HourLocator([0, 4, 8, 12, 16, 20])
             shortformatter = mdates.ConciseDateFormatter(locator)
             ax.yaxis.set_major_locator(shortlocator)
             ax.yaxis.set_major_formatter(shortformatter)
@@ -2098,7 +2112,7 @@ def plot_super_summary(
                 alphaList = [
                     alphaWVL[_wvl] if x > 0 else 0 for x in dfDots[_wvl].values
                 ]
-                _msize = 50 * (dfDots[_wvl].values)**2
+                _msize = 100 * (dfDots[_wvl].values)**2
                 if len(corrThrPlotList) == 1:
                     _msize = 100
 
@@ -2131,10 +2145,18 @@ def plot_super_summary(
                          color="orange",
                          alpha=0.2)
 
+        # Show average speed (not necessarily centre)
+        ax.plot(
+            list_times_vavg,
+            aiaTimes,
+            color="red",
+            alpha=0.8,
+            linewidth=2,)
+
     # Custom legend
     legend_elements = []
     for j, corrThr in enumerate(corrThrPlotList):
-        _mkrsize = 7 + j * 4
+        _mkrsize = 10 + j * 8
         # Should be 0 0
         _legendElement = Line2D([list_times_same_speed_LOW[0]], [aiaTimes[0]],
                                 marker='o',
@@ -2145,15 +2167,14 @@ def plot_super_summary(
 
         legend_elements.append(_legendElement)
 
-    legend = fig.legend(handles=legend_elements)
+    fig.legend(handles=legend_elements)
     fig.suptitle(
-        f"{insituParam} : expected velocities {speedSuper} - {speedSuperLow} km/s in yellow"
+        f" Expected velocities {speedSuper} - {speedSuperLow} km/s in yellow"
     )
-    fig.supxlabel(f"Time at SolO")
+    fig.supxlabel(f"Time at SolO ({titleDic[insituParam]})")
     fig.supylabel("Time at Source Surface = 2.5 Rsun")
 
-    # plt.tight_layout()
-
+    # If the correlationThrList is one number, save with info
     if len(corrThrPlotList) == 1:
         plt.savefig(
             f"{unsafeEMDDataPath}{corrThrPlotList[0]:.02f}{figName}_{insituParam}_Summary.png"
@@ -2165,6 +2186,8 @@ def plot_super_summary(
         plt.show()
 
     plt.close()
+
+    print(f"Saved {insituParam}")
 
 
 def new_plot_format(
@@ -2339,11 +2362,11 @@ def new_plot_format(
                     WVLValidity[f"{wvl}"] = validIMFsMatrix[:, 0]
 
             if i == n_insitu - 1:
-                axIS.xaxis.set_major_formatter(
-                    mdates.DateFormatter("%Y-%m-%d %H:%M"))
 
-                axIS.xaxis.set_minor_locator(mdates.HourLocator(interval=3))
-                axIS.xaxis.set_major_locator(mdates.HourLocator(interval=12))
+                locator = mdates.HourLocator([0, 12])
+                formatter = mdates.ConciseDateFormatter(locator)
+                axIS.xaxis.set_major_locator(locator)
+                axIS.xaxis.set_major_formatter(formatter)
 
         # Plot all lightcurves
         wvlDataLabel = "Det. Lcurve"

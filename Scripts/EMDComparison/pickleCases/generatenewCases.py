@@ -19,8 +19,8 @@ def main():
     AIA_max = datetime(2020, 5, 28, 13, 1)
     AIA_dt = 1  # How many hours to advance
 
+    # Around the base case, MARGINHOURSSOLO is utilised
     SOLO_base = datetime(2020, 5, 31, 20, 0)
-    SOLO_end = datetime(2020, 6, 1, 13, 30)
 
     cases = []
     i = 0

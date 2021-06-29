@@ -1,20 +1,20 @@
-BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
-
-from collections import namedtuple
+# Set up UNSAFE_EMD_DATA_PATH: global variable
 from sys import path
-
+BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
 path.append(f"{BASE_PATH}Scripts/")
-"""Main routine to compare remote and in-situ observations"""
+
+from Plasma.SoloData import SoloManager
+from collections import namedtuple
 from os import makedirs
 from EMDComparison.signalHelpers import compareTS, new_plot_format, plot_super_summary
 import numpy as np
 from datetime import datetime, timedelta
 from Solar.LcurveData import LcurveManager
-from Plasma.SoloData import SoloManager
 from astropy import constants as const
 from astropy import units as u
 
-# Set up UNSAFE_EMD_DATA_PATH: global variable
+
+"""Main routine to compare remote and in-situ observations"""
 
 newCases = True
 UNSAFE_EMD_DATA_PATH = f"{BASE_PATH}unsafe/EMD_Data/"
@@ -32,10 +32,13 @@ FILTERP = True
 # Plot all in-situ variables?
 PLOT_ALL_TOGETHER = True
 
-# Plot summary?
-SUPER_SUMMARY_PLOT = True
+# Add residual to non-super summary?
 ADDRESIDUAL = False
 
+# Plot summary?
+SUPER_SUMMARY_PLOT = True
+
+# Accelerated cases?
 accelerated = 1
 # accelerated = 4 / 3
 
@@ -98,7 +101,7 @@ def compareLcurvesToSolO(
     # Set header of directories
     makedirs(UNSAFE_EMD_DATA_PATH, exist_ok=True)
 
-    ### Directory structure
+    # Directory structure
     # Specific folder to have all extracted datasets and plots
     mainDir = f"{UNSAFE_EMD_DATA_PATH}{objDirExt}/"
     makedirs(mainDir, exist_ok=True)
@@ -141,7 +144,7 @@ def compareLcurvesToSolO(
 
 
 def extractDiscreteExamples(Caselist, margin, AIAduration=1):
-    """Extracts disxrete AIA - insituObject pairs
+    """Extracts discrete AIA - insituObject pairs
 
     Args:
         Caselist ([type]): [description]
@@ -211,16 +214,15 @@ def first_DeriveAndPlotSeparately():
         insituObject = SoloManager(
             times=(start, end),
             objCad=objCad,
-            cdfPath=
-            "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
+            cdfPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
         )
         insituObject.df = insituObject.df.interpolate()  # Fill gaps
         # Velocities are modified with 4/3 factor. Gives slightly better idea
         soloHI, soloLO, MEAN = (int(
             insituObject.df["V_R"].max() /
             accelerated), int(insituObject.df["V_R"].min() / accelerated),
-                                int(insituObject.df["V_R"].mean() /
-                                    accelerated))
+            int(insituObject.df["V_R"].mean() /
+                accelerated))
 
         # Calculate mass flux
         Vx = (insituObject.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
@@ -234,8 +236,7 @@ def first_DeriveAndPlotSeparately():
 
         # Light Curves
         lc = LcurveManager(
-            csvPath=
-            "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
+            csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
             objCad=objCad,
             wavelength=WAVELENGTH,
         )
@@ -288,14 +289,14 @@ def combinedPlot(superSummaryPlot=False):
     insituObject = SoloManager(
         times=(start, end),
         objCad=objCad,
-        cdfPath=
-        "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
+        cdfPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
     )
     insituObject.df = insituObject.df.interpolate()  # Fill gaps
     # Velocities are modified with 4/3 factor. Gives slightly better idea
-    soloHI, soloLO = (
+    soloHI, soloLO, soloAVG = (
         int(insituObject.df["V_R"].max() / accelerated),
         int(insituObject.df["V_R"].min() / accelerated),
+        int(insituObject.df["V_R"].mean() / accelerated),
     )
 
     # Calculate mass flux
@@ -353,34 +354,37 @@ def combinedPlot(superSummaryPlot=False):
                 SPCKernelName="solo",
                 speedSuper=soloHI,
                 speedSuperLow=soloLO,
+                speedAVG=soloAVG,
                 showFig=SHOWFIG,
                 figName=figName,
             )
 
     else:
         for index, aiaTimes in enumerate(aiaTimesList):
-            print(aiaTimes[0])
-            # Need to cut up dataframes
-            isTimes = soloTimesList[index]
-            dfInsituCut = insituObject.df[isTimes[0]:isTimes[1]]
-            dfInsituCut = dfInsituCut[insituObjectVars]
 
-            lcDicCut = {}
-            for _wvl in lcDic:
-                lcDicCut[f"{_wvl}"] = lcDic[_wvl].df[
-                    aiaTimes[0]:aiaTimes[1]].copy()
+            if aiaTimes[0] == datetime(2020, 5, 28, 1, 30):
+                print(aiaTimes[0])
+                # Need to cut up dataframes
+                isTimes = soloTimesList[index]
+                dfInsituCut = insituObject.df[isTimes[0]:isTimes[1]]
+                dfInsituCut = dfInsituCut[insituObjectVars]
 
-            dirExtension = f"{caseNamesList[index]}"
-            base_folder = f"{UNSAFE_EMD_DATA_PATH}{dirExtension}/"
-            new_plot_format(dfInsitu=dfInsituCut,
-                            lcDic=lcDicCut,
-                            regions=lcRegs,
-                            base_folder=base_folder,
-                            period=PERIODMINMAX,
-                            addResidual=ADDRESIDUAL,
-                            SPCKernelName="solo",
-                            spcSpeeds=(soloLO, soloHI),
-                            showFig=SHOWFIG)
+                lcDicCut = {}
+                for _wvl in lcDic:
+                    lcDicCut[f"{_wvl}"] = lcDic[_wvl].df[
+                        aiaTimes[0]:aiaTimes[1]].copy()
+
+                dirExtension = f"{caseNamesList[index]}"
+                base_folder = f"{UNSAFE_EMD_DATA_PATH}{dirExtension}/"
+                new_plot_format(dfInsitu=dfInsituCut,
+                                lcDic=lcDicCut,
+                                regions=lcRegs,
+                                base_folder=base_folder,
+                                period=PERIODMINMAX,
+                                addResidual=ADDRESIDUAL,
+                                SPCKernelName="solo",
+                                spcSpeeds=(soloLO, soloHI),
+                                showFig=SHOWFIG)
 
 
 if __name__ == "__main__":
