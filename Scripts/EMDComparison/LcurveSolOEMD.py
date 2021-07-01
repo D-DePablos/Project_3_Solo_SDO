@@ -26,7 +26,7 @@ objCad = 60  # Objective cadence in seconds for comparisons
 WVLLIST = [94, 193, 211]
 PERIODMINMAX = [3, 20]
 DELETE = False  # I believe this is not working at all as intended
-SHOWFIG = False
+SHOWFIG = True
 FILTERP = True
 
 # Plot all in-situ variables?
@@ -36,7 +36,7 @@ PLOT_ALL_TOGETHER = True
 ADDRESIDUAL = False
 
 # Plot summary?
-SUPER_SUMMARY_PLOT = True
+SUPER_SUMMARY_PLOT = False
 
 # Accelerated cases?
 accelerated = 1

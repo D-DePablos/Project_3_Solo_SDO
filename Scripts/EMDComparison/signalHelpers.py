@@ -26,10 +26,11 @@ Hmin = mdates.DateFormatter('%H:%M')
 emd = EMD()
 vis = Visualisation()
 
-WVLColours = {"94": "green", "171": "orange", "193": "brown", "211": "blue"}
-alphaWVL = {"94": 0.9, "171": 0.9, "193": 0.7, "211": 0.5}
-corrThrPlotList = np.arange(0.70, 1, 0.05)
-# corrThrPlotList = np.arange(0.85, 0.901, 0.05)
+WVLColours = {"94": "green", "171": "orange",
+              "193": "brown", "211": "blue", "HMI": "blue", "ch_open_flux": "blue", "ch_bpoint_flux": "orange"}
+alphaWVL = {"94": 0.9, "171": 0.9, "193": 0.7, "211": 0.5, "HMI": 0.9}
+# corrThrPlotList = np.arange(0.70, 1, 0.05)
+corrThrPlotList = np.arange(0.85, 0.901, 0.05)
 # corrThrPlotList = [0.65]
 
 titleDic = {
@@ -37,6 +38,11 @@ titleDic = {
     "SolO_T": "Tp",
     "SolO_N": "#p",
     "SolO_Mf": "Mass Flux",
+    "PSP_Vr": "Vsw",
+    "PSP_T": "Tp",
+    "PSP_Np": "#p",
+    "PSP_Mf": "Mass Flux",
+    "PSP_Br": "Br",
 }
 
 # Set general font size
@@ -53,6 +59,8 @@ axDic = {
     "21": [2, 0],
     "22": [2, 1],
     "23": [2, 2],
+    "open": [0],
+    "bpoint": [0],
 }
 
 # font = {"family": "DejaVu Sans", "weight": "normal", "size": 25}
@@ -102,10 +110,14 @@ def collect_dfs_npys(isDf,
 
         for isparam in insituDF.columns:
             # How do we get in situ data? From above function!
-            _subfolder = f"{_base_folder}{wvl}_{region}/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
+            if region != "":
+                _subfolder = f"{_base_folder}*{wvl}_{region}*/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
+            else:
+                _subfolder = f"{_base_folder}*{wvl}*/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
             foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
             short_D = glob(f"{_subfolder}IMF/short*.npy")
             short_T = lcDic[wvl].index
+            # TODO: Fix how the folder is gount - problem with underscore or something!
             resultingMatrices[f"{isparam}"] = matrixData(
                 insituDF[f"{isparam}"], np.load(foundMatrix[0]),
                 np.load(short_D[0]), short_T)
@@ -1388,7 +1400,7 @@ class SignalFunctions(Signal):
                     col_labels,
                     valid_data=valid_hmap if (filterPeriods == True) else None,
                     cmap="Blues",
-                    vmin_vmax=[0, 1],
+                    short_signalvmin_vmax=[0, 1],
                     cbarlabel=f"P-values per IMF",
                 )
                 _ = annotate_heatmap(im,
@@ -1896,7 +1908,7 @@ def compareTS(
                 otherSigFunc.saveFolder = otherWinFolder
                 selfSigFunc.saveFolder = selfWinFolder
 
-                # TODO: Highly suspicious code here. Likely to delete just one variable one time
+                # TODO: Make deletion better
                 if delete and not deleted_already:
                     from shutil import rmtree
                     print("Deleting otherSigFunc and selfSigFunc folders")
@@ -1948,6 +1960,8 @@ def plot_super_summary(
     speedAVG=250,
     showFig=False,
     figName="",
+    gridRegions=True,
+    insituArrayFreq="1min"
 ):
     """Plots a "super" summary with info about all selected regions
 
@@ -1960,6 +1974,7 @@ def plot_super_summary(
         period (Tuple): [description]
         SPCKernelName ([type], optional): SpacecraftKernel name for psp or solo. Defaults to None.
         showFig (bool, optional): [description]. Defaults to False.
+        gridRegions = (nrows, ncols, sharex, sharey)
     """
     from matplotlib.lines import Line2D
 
@@ -1975,18 +1990,31 @@ def plot_super_summary(
     #     a.set_aspect('equal')
 
     # fig.subplots_adjust(wspace=0, hspace=0)
-    nrowsCols = int(np.sqrt(len(regions)))
-    fig, axs = plt.subplots(nrowsCols,
-                            nrowsCols,
-                            figsize=(16, 10),
-                            sharex=True,
-                            sharey=True)
+    # TODO: Need to make it so sometimes the nrows is different to ncols
+    if gridRegions == True:
+        nrowsCols = int(np.sqrt(len(regions)))
+        fig, axs = plt.subplots(nrowsCols,
+                                nrowsCols,
+                                figsize=(16, 10),
+                                sharex=True,
+                                sharey=True)
+    else:
+        nrows = gridRegions[0]
+        ncols = gridRegions[1]
+        fig, axs = plt.subplots(
+            nrows=nrows, ncols=ncols,
+            sharex=gridRegions[2],
+            sharey=gridRegions[3]
+        )
 
-    for region in regions:
+    for i, region in enumerate(regions):
 
-        # 2-d position in grid
-        row, col = axDic[region]
-        ax = axs[row, col]
+        if gridRegions == True:
+            # 2-d position in grid
+            row, col = axDic[region]
+            ax = axs[row, col]
+        else:
+            ax = axs[i]
 
         # Take the starting point for AIA Times
         aiaTimes = []
@@ -2010,7 +2038,7 @@ def plot_super_summary(
             insituEndTime = longSpan[1]
             insituArray = pd.date_range(start=insituStTime,
                                         end=insituEndTime,
-                                        freq="1min")
+                                        freq=insituArrayFreq)
 
             # print(f"{insituArray[0]}  \n   TO     \n    {insituArray[-1]}")
             for _wvl in wvlList:
@@ -2201,6 +2229,7 @@ def new_plot_format(
         SPCKernelName=None,
         spcSpeeds=(200, 300),
         showFig=False,
+        windDisp="60s"
 ):
     """
     This new plot format requires rest of plots to have been made and correlations calculated!
@@ -2281,6 +2310,7 @@ def new_plot_format(
             lcDic=lcDic,
             base_folder=base_folder,
             period=period,
+            windDisp=windDisp,
         )
         regionDic[region] = expandedWvlDic
 
