@@ -84,15 +84,15 @@ def normalize_signal(s: np.ndarray):
 
 
 def collect_dfs_npys(isDf,
-                     lcDic,
+                     shortDic,
                      region,
                      base_folder,
                      windDisp="60s",
                      period="3 - 20"):
     def _find_corr_mat(
             region="chole",
-            lcDic=lcDic,
-            wvl=193,
+            shortDic=shortDic,
+            shortID=193,
             insituDF=None,
             _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
             windDisp="60s",
@@ -101,7 +101,7 @@ def collect_dfs_npys(isDf,
 
         Args:
             region (str): Which remote sensing region to explore
-            wvl (int): Which wavelength is relevant
+            shortID (str): Which short variable is relevant
             insituParams (list): In situ parameters to find correlation matrices for
         """
         resultingMatrices = {}
@@ -111,12 +111,12 @@ def collect_dfs_npys(isDf,
         for isparam in insituDF.columns:
             # How do we get in situ data? From above function!
             if region != "":
-                _subfolder = f"{_base_folder}*{wvl}_{region}*/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
+                _subfolder = f"{_base_folder}*{shortID}_{region}*/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
             else:
-                _subfolder = f"{_base_folder}*{wvl}*/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
+                _subfolder = f"{_base_folder}*{shortID}*/*{isparam}/{windDisp}/{period[0]} - {period[1]}/"
             foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
             short_D = glob(f"{_subfolder}IMF/short*.npy")
-            short_T = lcDic[wvl].index
+            short_T = shortDic[shortID].index
             resultingMatrices[f"{isparam}"] = matrixData(
                 insituDF[f"{isparam}"], np.load(foundMatrix[0]),
                 np.load(short_D[0]), short_T)
@@ -125,10 +125,10 @@ def collect_dfs_npys(isDf,
 
     expandedWvlDic = {}
     # Select the correlation matrix for each insituObject variable, given region, given lcurve
-    for wvl in lcDic:
+    for shortID in shortDic:
         # dataContainer should have all
-        dataContainer = _find_corr_mat(wvl=wvl,
-                                       lcDic=lcDic,
+        dataContainer = _find_corr_mat(shortID=shortID,
+                                       shortDic=shortDic,
                                        insituDF=isDf,
                                        _base_folder=base_folder,
                                        region=region,
@@ -136,7 +136,7 @@ def collect_dfs_npys(isDf,
                                        period=period)
 
         #namedtuple("data", "isData corrMatrix shortData shortTime")
-        expandedWvlDic[f"{wvl}"] = dataContainer
+        expandedWvlDic[f"{shortID}"] = dataContainer
     return expandedWvlDic
 
 
@@ -1192,7 +1192,7 @@ class SignalFunctions(Signal):
             bar_width=1.2,
             filterPeriods=True,
             showFig=False,
-            showSpeed=True,  # Whether to show speed instead of time
+            showSpeed=False,  # Whether to show speed instead of time
             SPCKernelName="solo",
             LOSPEED=255,
             HISPEED=285,
@@ -1280,8 +1280,6 @@ class SignalFunctions(Signal):
             wind_max = 12 - np.isnan(pearson[:, 0]).sum()
             aia_max = 12 - np.isnan(pearson[0, :]).sum()
 
-            # wind_max_sp = 10 - np.isnan(spearman[:, 0]).sum()
-            # aia_max_sp = 10 - np.isnan(spearman[0, :]).sum()
             # Filter to only take values where considered valid due to period filtering
             pvalid = pearson[valid == 1]
             rvalid = spearman[valid == 1]
@@ -1440,17 +1438,6 @@ class SignalFunctions(Signal):
 
                 create_ts_plot()
 
-        # # Save the hitrates
-        # if other.signalObject.location_signal_peak:
-        #     df_pe = pd.DataFrame({})
-        #     df_sp = pd.DataFrame({})
-        #     for index, corr_thr in enumerate(corrThrPlotList):
-        #         df_pe[f"{corr_thr}"] = pe_sp_pairs[:, index, 0]
-        #         df_sp[f"{corr_thr}"] = pe_sp_pairs[:, index, 1]
-        #     # Then have the hitrate information available
-        #     self.hitrate = (df_pe, df_sp)
-        #     # hitrate_tables = self.calculate_hitrate(save=True)
-
         # Establish relevant signal Objects
         # SHORT
         short_signal = self
@@ -1462,14 +1449,12 @@ class SignalFunctions(Signal):
         long_signal = other
         long_values = long_signal.s
         long_true_values = long_signal.base_signal
-        # long_true_values
-
-        # window_width = max(short_time) * 12 / 60
 
         if useRealTime:
             short_duration = short_signal.true_time[
                 -1] - short_signal.true_time[0]
             time_axis = long_signal.true_time
+            print(long_signal.true_time)
         else:
             short_duration = (short_signal.t[-1] - short_signal.t[0]) / 60
             time_axis = long_signal.t / 60
@@ -1503,11 +1488,6 @@ class SignalFunctions(Signal):
                 time_axis[-1] + timedelta(hours=margin_hours),
             )
             ax.xaxis.grid(True)
-
-            ax.xaxis.set_minor_locator(mdates.HourLocator(interval=1))
-            ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
-            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %H:%M"))
-            ax.xaxis.set_tick_params(rotation=45)
 
         else:
             # Set xticks every hour
@@ -1548,7 +1528,7 @@ class SignalFunctions(Signal):
             loc="upper left",
         )
         in_ax.plot(short_time, short_values, color="black")
-        in_ax.set_title(f"{region_string}")
+        in_ax.set_title(f"{region_string} {short_duration}s")
         plt.xticks([])
         plt.yticks([])
 
@@ -1594,33 +1574,13 @@ class SignalFunctions(Signal):
                         zorder=1,
                     )
 
-                # if spearman_array[index] != 0:
-                #     try:
-                #         _color = possibleColors[
-                #             f"{int(spearman_array[index])}"]
-                #     except KeyError:
-                #         _color = "red"
-                #     _alpha = 0.35 if spearman_array[index] > 0 else 0
-                #     ax2.bar(
-                #         barchart_time,
-                #         corr_label,
-                #         width=bar_width,
-                #         color=_color,
-                #         edgecolor="white",
-                #         alpha=_alpha,
-                #         zorder=2,
-                #     )
-
         # Columns on bottom plot
         if useRealTime:
-            margin_label = timedelta(hours=1)
-            # interval = int((other.t[-1] / 3600) / 10)
-            interval = 3
+            locator = mdates.HourLocator([0, 12])
+            formatter = mdates.ConciseDateFormatter(locator)
+            ax2.xaxis.set_major_locator(locator)
+            ax2.xaxis.set_major_formatter(formatter)
 
-            ax2.xaxis.set_minor_locator(mdates.HourLocator(1))
-            ax2.xaxis.set_major_locator(mdates.HourLocator(interval=interval))
-            ax2.xaxis.set_major_formatter(mdates.DateFormatter("%d %H:%M"))
-            ax2.xaxis.set_tick_params(rotation=10)
             # Set the x limits
             ax2.set_xlim(
                 time_axis[0] - timedelta(hours=margin_hours),
@@ -1652,14 +1612,6 @@ class SignalFunctions(Signal):
 
         else:
             ax2.xaxis.set_tick_params(rotation=25)
-            margin_label = -10
-            interval = int((other.t[-1] / 3600) / 10)
-
-        # Set out the legend and info about pairs
-        # legend_x = time_axis[-1] + margin_label
-        # ax2.text(x=legend_x, y=0.95, s="1 pair", color=possibleColors["1"])
-        # ax2.text(x=legend_x, y=0.9, s="2 pairs", color=possibleColors["2"])
-        # ax2.text(x=legend_x, y=0.85, s="3 pairs", color=possibleColors["3"])
 
         # Divide by 2 number of ticks and add 1 as highest Corr
         corrThrLimits = []
@@ -1667,7 +1619,6 @@ class SignalFunctions(Signal):
             if np.mod(i, 2) == 0:
                 corrThrLimits.append(value)
         corrThrLimits.append(1)
-
         ax2.set_yticks(corrThrLimits)  # Ensure ticks are good
         ax2.set_ylim(corrThrPlotList[0], 1.01)  # Allows for any correlation
         ax2.set_ylabel("Highest corr. found")
@@ -1680,7 +1631,7 @@ class SignalFunctions(Signal):
                 SPCKernelName=SPCKernelName)
 
             axV = ax2.twiny()
-            axV.plot(vSWAxis, np.repeat(0.99, len(vSWAxis)), alpha=0)
+            # axV.plot(vSWAxis, np.repeat(0.99, len(vSWAxis)), alpha=0)
             axV.invert_xaxis()
             # Add a span between low and high values
             axV.axvspan(
@@ -1836,7 +1787,6 @@ def compareTS(
     expectedLocationList=False,
     showLocationList=False,
     detrend_box_width=200,
-    delete=False,
     showFig=True,
     renormalize=False,
     showSpeed=False,
@@ -1859,7 +1809,6 @@ def compareTS(
     """
 
     assert savePath != None, "Please set savePath to store relevant arrays"
-    deleted_already = False
     # For all of the lightcurves
     for varOther in list(dfOther):
         otherPath = f"{savePath}{labelOther}/{varOther}/"
@@ -1872,7 +1821,6 @@ def compareTS(
             time=dfOther.index,
             saveFolder=otherPath,
         )
-
         signalOther.detrend(box_width=detrend_box_width)
 
         # Add functionality, filter and generate IMFs
@@ -1906,16 +1854,6 @@ def compareTS(
                 )
                 otherSigFunc.saveFolder = otherWinFolder
                 selfSigFunc.saveFolder = selfWinFolder
-
-                # TODO: Make deletion better
-                if delete and not deleted_already:
-                    from shutil import rmtree
-                    print("Deleting otherSigFunc and selfSigFunc folders")
-                    print(otherSigFunc.saveFolder)
-                    print(selfSigFunc.saveFolder)
-                    rmtree(otherSigFunc.saveFolder, ignore_errors=True)
-                    rmtree(selfSigFunc.saveFolder, ignore_errors=True)
-                    deleted_already = True
 
                 selfSigFunc.generate_windows(
                     other=otherSigFunc,
@@ -2219,7 +2157,7 @@ def plot_super_summary(
 
 def new_plot_format(
         dfInsitu,
-        lcDic,
+        shortDic,
         regions,
         base_folder,
         period,
@@ -2233,7 +2171,7 @@ def new_plot_format(
     """
     This new plot format requires rest of plots to have been made and correlations calculated!
 
-    lcDic contains each of the relevant wavelengths and its dataframe
+    shortDic contains each of the relevant wavelengths and its dataframe
     """
 
     # Adds the bar plots
@@ -2306,7 +2244,7 @@ def new_plot_format(
         expandedWvlDic = collect_dfs_npys(
             region=region,
             isDf=dfInsitu,
-            lcDic=lcDic,
+            shortDic=shortDic,
             base_folder=base_folder,
             period=period,
             windDisp=windDisp,
@@ -2326,7 +2264,8 @@ def new_plot_format(
         n_insitu = len(insituList)
 
         nplots = n_wvl if n_wvl >= n_insitu else n_insitu
-        RSDuration = lcDic[wvlList[0]].index[-1] - lcDic[wvlList[0]].index[0]
+        RSDuration = shortDic[wvlList[0]].index[-1] - \
+            shortDic[wvlList[0]].index[0]
 
         # Create one figure per region, per aiaTime
         fig, axs = plt.subplots(nrows=nplots,
@@ -2335,7 +2274,7 @@ def new_plot_format(
                                 sharex="col",
                                 gridspec_kw={'width_ratios': [4, 1]})
         fig.suptitle(
-            f'Region {region} -> AIA: {lcDic[wvlList[0]].index[0].strftime(format="%Y-%m-%d %H:%M")}',
+            f'Region {region} -> AIA: {shortDic[wvlList[0]].index[0].strftime(format="%Y-%m-%d %H:%M")}',
             size=25)
 
         # Delete all axis. If used they are shown
