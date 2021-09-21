@@ -117,7 +117,6 @@ def collect_dfs_npys(isDf,
             foundMatrix = glob(f"{_subfolder}IMF/Corr_matrix_all.npy")
             short_D = glob(f"{_subfolder}IMF/short*.npy")
             short_T = lcDic[wvl].index
-            # TODO: Fix how the folder is gount - problem with underscore or something!
             resultingMatrices[f"{isparam}"] = matrixData(
                 insituDF[f"{isparam}"], np.load(foundMatrix[0]),
                 np.load(short_D[0]), short_T)

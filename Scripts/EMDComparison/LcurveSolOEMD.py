@@ -30,7 +30,7 @@ SHOWFIG = True
 FILTERP = True
 
 # Plot all in-situ variables?
-PLOT_ALL_TOGETHER = False
+PLOT_ALL_TOGETHER = True
 
 # Add residual to non-super summary?
 ADDRESIDUAL = False
