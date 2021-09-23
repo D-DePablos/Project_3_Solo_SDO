@@ -15,7 +15,7 @@ from datetime import datetime
 from importsProj3.signalAPI import (
     emdAndCompareCases,
     caseCreation,
-	superSummaryPlotGeneric,
+    superSummaryPlotGeneric,
 )
 import idlsave
 from collections import namedtuple
@@ -137,14 +137,16 @@ def main(plotSeparately=True):
             detrendBoxWidth=200,
         )
     else:
-        
-		superSummaryPlotGeneric(
-            shortDFDic,
-            longDF,
-            saveFolder=saveFolder,
-            PeriodMinMax=PeriodMinMax,
-            showFig=SHOWFIG
-		)
+        pass
+
+
+# superSummaryPlotGeneric(
+#     shortDFDic,
+#     longDF,
+#     saveFolder=saveFolder,
+#     PeriodMinMax=PeriodMinMax,
+#     showFig=SHOWFIG
+# )
 
 
 if __name__ == "__main__":

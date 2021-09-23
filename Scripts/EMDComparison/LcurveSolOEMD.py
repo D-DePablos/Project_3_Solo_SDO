@@ -1,5 +1,6 @@
 # Set up UNSAFE_EMD_DATA_PATH: global variable
 from sys import path
+
 BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
 path.append(f"{BASE_PATH}Scripts/")
 
@@ -18,7 +19,9 @@ from astropy import units as u
 
 newCases = True
 UNSAFE_EMD_DATA_PATH = f"{BASE_PATH}unsafe/EMD_Data/"
-UNSAFE_EMD_DATA_PATH = UNSAFE_EMD_DATA_PATH if not newCases else f"{UNSAFE_EMD_DATA_PATH}newCases_allSOLO/"
+UNSAFE_EMD_DATA_PATH = (
+    UNSAFE_EMD_DATA_PATH if not newCases else f"{UNSAFE_EMD_DATA_PATH}newCases_allSOLO/"
+)
 makedirs(UNSAFE_EMD_DATA_PATH, exist_ok=True)
 
 # Set parameters here
@@ -36,7 +39,7 @@ PLOT_ALL_TOGETHER = True
 ADDRESIDUAL = False
 
 # Plot summary?
-SUPER_SUMMARY_PLOT = False
+SUPER_SUMMARY_PLOT = True
 
 # Accelerated cases?
 accelerated = 1
@@ -58,9 +61,11 @@ caseName = "accCases" if accelerated == 4 / 3 else "consCases"
 caseName = "newCases_ALLSOLO" if newCases else caseName
 
 with open(
-        f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/{caseName}.pickle",
-        "rb") as f:
+    f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/{caseName}.pickle",
+    "rb",
+) as f:
     import pickle
+
     cases = pickle.load(f)
 
 MARGINHOURSSOLO = cases[0]["MARGINHOURSSOLO"]
@@ -108,15 +113,14 @@ def compareLcurvesToSolO(
 
     # Set the Self and Other dataframe to those within the Spacecraft object
     dfRemote = remoteObj.df[remVars]
-    dfRemote.columns = [f"{remoteName}_{i}"
-                        for i in remVars]  # Rename the columns
+    dfRemote.columns = [f"{remoteName}_{i}" for i in remVars]  # Rename the columns
 
     dfInsitu = insituObj.df[insituVars]
     dfInsitu.columns = [f"{insituName}_{i}" for i in insituVars]
 
     # Cut down the self and other dataseries
-    dfRemote = dfRemote[remoteTimes[0]:remoteTimes[1]]
-    dfInsitu = dfInsitu[insituTimes[0]:insituTimes[1]]
+    dfRemote = dfRemote[remoteTimes[0] : remoteTimes[1]]
+    dfInsitu = dfInsitu[insituTimes[0] : insituTimes[1]]
     cadSelf = remoteCad
     cadOther = insituCad
 
@@ -152,6 +156,7 @@ def extractDiscreteExamples(Caselist, margin, AIAduration=1):
         AIAduration (int, optional): [description]. Defaults to 1.
         noColumns (bool, optional): Whether to skip plotting backmapped time columns
     """
+
     def _constructExpectedLocation(_times, _color="blue", _label="BBMatch"):
         """Construct the Expected Location dic
 
@@ -164,12 +169,7 @@ def extractDiscreteExamples(Caselist, margin, AIAduration=1):
             Dictionary with proper formatting
         """
 
-        return {
-            "start": _times[0],
-            "end": _times[1],
-            "color": _color,
-            "label": _label
-        }
+        return {"start": _times[0], "end": _times[1], "color": _color, "label": _label}
 
     aiaTimes = []
     matchTimes = []
@@ -200,8 +200,7 @@ def extractDiscreteExamples(Caselist, margin, AIAduration=1):
         # Get the specific case Name
         caseNames.append(case["caseName"])
 
-        refLocations.append(
-            _constructExpectedLocation(_times=(matchStart, matchEnd)))
+        refLocations.append(_constructExpectedLocation(_times=(matchStart, matchEnd)))
 
     return aiaTimes, insituTimes, caseNames, refLocations
 
@@ -218,16 +217,16 @@ def first_DeriveAndPlotSeparately():
         )
         insituObject.df = insituObject.df.interpolate()  # Fill gaps
         # Velocities are modified with 4/3 factor. Gives slightly better idea
-        soloHI, soloLO, MEAN = (int(
-            insituObject.df["V_R"].max() /
-            accelerated), int(insituObject.df["V_R"].min() / accelerated),
-            int(insituObject.df["V_R"].mean() /
-                accelerated))
+        soloHI, soloLO, MEAN = (
+            int(insituObject.df["V_R"].max() / accelerated),
+            int(insituObject.df["V_R"].min() / accelerated),
+            int(insituObject.df["V_R"].mean() / accelerated),
+        )
 
         # Calculate mass flux
         Vx = (insituObject.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
         mp = const.m_p
-        N = (insituObject.df["N"].values * (u.cm**(-3))).to(u.m**(-3))
+        N = (insituObject.df["N"].values * (u.cm ** (-3))).to(u.m ** (-3))
         insituObject.df["Mf"] = (N * mp * Vx).value
 
         # Variables in situ
@@ -243,7 +242,12 @@ def first_DeriveAndPlotSeparately():
         lc.df = lc.df.interpolate()  # Interpolate after forming lc object
 
         # We set a margin around original obs.
-        aiaTimesList, soloTimesList, caseNamesList, refLocations = extractDiscreteExamples(
+        (
+            aiaTimesList,
+            soloTimesList,
+            caseNamesList,
+            refLocations,
+        ) = extractDiscreteExamples(
             cases,
             margin=MARGINHOURSSOLO,
         )
@@ -302,7 +306,7 @@ def combinedPlot(superSummaryPlot=False):
     # Calculate mass flux
     Vx = (insituObject.df["V_R"].values * (u.km / u.s)).to(u.m / u.s)
     mp = const.m_p
-    N = (insituObject.df["N"].values * (u.cm**(-3))).to(u.m**(-3))
+    N = (insituObject.df["N"].values * (u.cm ** (-3))).to(u.m ** (-3))
     insituObject.df["Mf"] = (N * mp * Vx).value
 
     # Variables in situ
@@ -321,26 +325,25 @@ def combinedPlot(superSummaryPlot=False):
     if superSummaryPlot:
 
         # Possibly this is not great
-        soloStendTotal = (insituObject.df.index[0].to_pydatetime(),
-                          insituObject.df.index[-1].to_pydatetime())
+        soloStendTotal = (
+            insituObject.df.index[0].to_pydatetime(),
+            insituObject.df.index[-1].to_pydatetime(),
+        )
 
         wvlList = WVLLIST
 
         allCases = []
-        Casetuple = namedtuple("Case",
-                               ["dirExtension", "isStend_t", "rsStend_t"])
+        Casetuple = namedtuple("Case", ["dirExtension", "isStend_t", "rsStend_t"])
         for index, aiaTimes in enumerate(aiaTimesList):
             _isT = soloTimesList[index]
             dirExtension = f"{caseNamesList[index]}"
             allCases.append(
-                Casetuple(dirExtension, (_isT[0], _isT[1]),
-                          (aiaTimes[0], aiaTimes[1])))
+                Casetuple(dirExtension, (_isT[0], _isT[1]), (aiaTimes[0], aiaTimes[1]))
+            )
 
         # Figure out whether to show yellow bar - DONE
 
-        insituObject.df.columns = [
-            "SolO_" + param for param in insituObject.df.columns
-        ]
+        insituObject.df.columns = ["SolO_" + param for param in insituObject.df.columns]
 
         for insituParam in insituObject.df.columns:
             plot_super_summary(
@@ -366,25 +369,28 @@ def combinedPlot(superSummaryPlot=False):
                 print(aiaTimes[0])
                 # Need to cut up dataframes
                 isTimes = soloTimesList[index]
-                dfInsituCut = insituObject.df[isTimes[0]:isTimes[1]]
+                dfInsituCut = insituObject.df[isTimes[0] : isTimes[1]]
                 dfInsituCut = dfInsituCut[insituObjectVars]
 
                 lcDicCut = {}
                 for _wvl in lcDic:
-                    lcDicCut[f"{_wvl}"] = lcDic[_wvl].df[
-                        aiaTimes[0]:aiaTimes[1]].copy()
+                    lcDicCut[f"{_wvl}"] = (
+                        lcDic[_wvl].df[aiaTimes[0] : aiaTimes[1]].copy()
+                    )
 
                 dirExtension = f"{caseNamesList[index]}"
                 base_folder = f"{UNSAFE_EMD_DATA_PATH}{dirExtension}/"
-                new_plot_format(dfInsitu=dfInsituCut,
-                                lcDic=lcDicCut,
-                                regions=lcRegs,
-                                base_folder=base_folder,
-                                period=PERIODMINMAX,
-                                addResidual=ADDRESIDUAL,
-                                SPCKernelName="solo",
-                                spcSpeeds=(soloLO, soloHI),
-                                showFig=SHOWFIG)
+                new_plot_format(
+                    dfInsitu=dfInsituCut,
+                    lcDic=lcDicCut,
+                    regions=lcRegs,
+                    base_folder=base_folder,
+                    period=PERIODMINMAX,
+                    addResidual=ADDRESIDUAL,
+                    SPCKernelName="solo",
+                    spcSpeeds=(soloLO, soloHI),
+                    showFig=SHOWFIG,
+                )
 
 
 if __name__ == "__main__":
