@@ -3,7 +3,8 @@ BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
 from sys import path
 
 path.append(f"{BASE_PATH}Scripts/")
-path.append(f"/home/diegodp/Documents/PhD/Paper_2/InsituEMDCorrelation/Scripts/EMD/")
+path.append(
+    f"/home/diegodp/Documents/PhD/Paper_2/InsituEMDCorrelation/Scripts/EMD/")
 
 import pandas as pd
 import numpy as np
@@ -15,7 +16,6 @@ from datetime import datetime
 from importsProj3.signalAPI import (
     emdAndCompareCases,
     caseCreation,
-    superSummaryPlotGeneric,
 )
 import idlsave
 from collections import namedtuple
@@ -31,7 +31,7 @@ def main(plotSeparately=True):
     SHOWFIG = False
 
     # We set a large possible set of periodicities
-    PeriodMinMax = [5, 20]
+    PeriodMinMax = [5, 30]
     makedirs(saveFolder, exist_ok=True)
 
     # IN SITU DATA
@@ -44,18 +44,23 @@ def main(plotSeparately=True):
 
     # Attempt to read in dataframes
     try:
-        df_171 = pd.read_csv(f"{dataFolder}small_ch_171_lc_in.csv", index_col="Time")
-        df_193 = pd.read_csv(f"{dataFolder}small_ch_193_lc_in.csv", index_col="Time")
+        df_171 = pd.read_csv(
+            f"{dataFolder}small_ch_171_lc_in.csv", index_col="Time")
+        df_193 = pd.read_csv(
+            f"{dataFolder}small_ch_193_lc_in.csv", index_col="Time")
         df_flux = pd.read_csv(f"{dataFolder}ch_flux.csv", index_col="Time")
         print("Loaded csv successfully")
 
         for _df in (df_171, df_193, df_flux):
             _df.index = pd.to_datetime(_df.index)
 
+    # If unable to load CSVs, generate them from base data
     except FileNotFoundError:
         # REMOTE DATA
-        rs_171 = idlsave.read(f"{dataFolder}small_ch_171_lc_in.sav", verbose=False)
-        rs_193 = idlsave.read(f"{dataFolder}small_ch_193_lc_in.sav", verbose=False)
+        rs_171 = idlsave.read(
+            f"{dataFolder}small_ch_171_lc_in.sav", verbose=False)
+        rs_193 = idlsave.read(
+            f"{dataFolder}small_ch_193_lc_in.sav", verbose=False)
         ch_flux = idlsave.read(f"{dataFolder}chflux.sav", verbose=False)
 
         # 171 and 193 observations
@@ -96,8 +101,10 @@ def main(plotSeparately=True):
             index=pd.to_datetime(flux_time, format="%Y.%m.%d_%H:%M:%S_TAI"),
         )
 
-        df_171.to_csv(f"{dataFolder}small_ch_171_lc_in.csv", index_label="Time")
-        df_193.to_csv(f"{dataFolder}small_ch_193_lc_in.csv", index_label="Time")
+        df_171.to_csv(f"{dataFolder}small_ch_171_lc_in.csv",
+                      index_label="Time")
+        df_193.to_csv(f"{dataFolder}small_ch_193_lc_in.csv",
+                      index_label="Time")
         df_flux.to_csv(f"{dataFolder}ch_flux.csv", index_label="Time")
 
     # # Create test cases
@@ -135,20 +142,15 @@ def main(plotSeparately=True):
             PeriodMinMax=PeriodMinMax,
             showFig=SHOWFIG,
             detrendBoxWidth=200,
+            corrThrPlotList=np.arange(0.65, 1, 0.05),
+            multiCPU=4,
         )
     else:
+        raise NotImplementedError("Still unable to plot all together")
         pass
 
 
-# superSummaryPlotGeneric(
-#     shortDFDic,
-#     longDF,
-#     saveFolder=saveFolder,
-#     PeriodMinMax=PeriodMinMax,
-#     showFig=SHOWFIG
-# )
-
-
 if __name__ == "__main__":
-    # TODO: Need to run the cases
     main()
+
+    # TODO: Super summary plot - what do they look like for these cases?

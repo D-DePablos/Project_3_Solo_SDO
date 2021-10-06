@@ -24,10 +24,8 @@ from sunpy.time import parse_time
 import idlsave
 from collections import namedtuple
 
-# %% [markdown]
 # ### General Setup of lightcurves
 
-# %%
 # Set the unsafe, target safe, and dataFolder
 unsafe_dir = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/"
 saveFolder = f"{unsafe_dir}ISSI/"
@@ -89,12 +87,7 @@ df_flux = pd.DataFrame(
     },
     index=pd.to_datetime(flux_time, format="%Y.%m.%d_%H:%M:%S_TAI"))
 
-# %% [markdown]
 # # Using compareTS from signalFunctions
-
-# %%
-
-
 def AIA_compare(
     AIA=None,
     PSP=None,
@@ -367,45 +360,4 @@ def superSummaryHMI():
 
 
 HMItogether()  # There is a problem with how files are found. Might need to adapt some parts inside signalHelpers.py
-# compareHMI()
-# superSummaryHMI()
 
-# %%
-# # Selecting ~ 10 hours of in situ observations with 14 switchbacks
-# timeInsitu = (datetime(2018, 10, 31, 12), datetime(2018, 10, 31, 22))
-# df_is_cut = df_is[timeInsitu[0]:timeInsitu[1]].copy()
-
-# # Time in situ is one hour only?
-# timeSbs = (datetime(2018, 10, 30, 20), datetime(2018, 10, 30, 21))
-# df_open = df_flux["ch_open_flux"][timeSbs[0]:timeSbs[1]]
-# df_bpoint = df_flux["ch_bpoint_flux"][timeSbs[0]:timeSbs[1]]
-
-# lcDic = {
-#     "open_flux": df_171_cut.interpolate(),
-#     "bpoint_flux": df_193_cut.interpolate(),
-# }
-
-# # Selecting ~ 10 hours of in situ observations
-# timeInsitu = (datetime(2018, 11, 1, 12), datetime(2018, 11, 1, 20))
-# df_is_copy = df_is[timeInsitu[0]:timeInsitu[1]].copy()
-
-# timeSbs = (datetime(2018, 10, 30, 20), datetime(2018, 10, 30, 21))
-# df_cut_171 = df_171[timeSbs[0]:timeSbs[1]]
-# df_cut_193 = df_193[timeSbs[0]:timeSbs[1]]
-
-# # This region is not actually highlighted!
-# highlightRegion = [{
-#     "start": datetime(2018, 10, 31, 16),
-#     "end": datetime(2018, 10, 31, 20),
-#     "color": "blue",
-#     "label": "SB bmap.",
-# }, ]
-
-# for remDF, remLabel in zip((df_cut_171, df_cut_193), ("171", "193")):
-#     AIA_compare(
-#         AIA=remDF.copy(), PSP=df_is_copy.copy(), AIA_id=remLabel,
-#         PeriodMinMax=PeriodMinMax, delete=DELETE, showFig=SHOWFIG,
-#         subfolderInfo="SB_OtherSBs", showSpeed=True,
-#         highlightRegion=highlightRegion,
-#         LOSPEED=df_is_copy["Vr"].min(), HISPEED=df_is_copy["Vr"].max()
-#     )
