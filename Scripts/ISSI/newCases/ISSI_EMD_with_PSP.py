@@ -21,7 +21,7 @@ import idlsave
 from collections import namedtuple
 
 
-def main(plotSeparately=True):
+def main(plotSeparately=True, forceCreateCases=False, multiCPU=4):
     # Set the unsafe, target safe, and dataFolder
     unsafe_dir = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/"
     saveFolder = f"{unsafe_dir}ISSI/New_Method/"
@@ -42,6 +42,7 @@ def main(plotSeparately=True):
     insituParams = ["Vr", "Mf", "Np", "T", "Br"]
     df_is = df_is[insituParams]
 
+    # Set up the dataframes with proper cadence, etc.
     # Attempt to read in dataframes
     try:
         df_171 = pd.read_csv(
@@ -56,6 +57,7 @@ def main(plotSeparately=True):
 
     # If unable to load CSVs, generate them from base data
     except FileNotFoundError:
+        # TODO: Make into function (make ISSI csv)
         # REMOTE DATA
         rs_171 = idlsave.read(
             f"{dataFolder}small_ch_171_lc_in.sav", verbose=False)
@@ -119,7 +121,7 @@ def main(plotSeparately=True):
         "shortDisplacement": 3,
         "MarginHours": 24,
         "savePicklePath": "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/ISSI/cases/AIAcases.pickle",
-        "forceCreate": True,
+        "forceCreate": forceCreateCases,
     }
 
     # Get the cases and put them together with respective AIA observations in Dic
@@ -143,11 +145,10 @@ def main(plotSeparately=True):
             showFig=SHOWFIG,
             detrendBoxWidth=200,
             corrThrPlotList=np.arange(0.65, 1, 0.05),
-            multiCPU=4,
+            multiCPU=multiCPU,
         )
     else:
         raise NotImplementedError("Still unable to plot all together")
-        pass
 
 
 if __name__ == "__main__":

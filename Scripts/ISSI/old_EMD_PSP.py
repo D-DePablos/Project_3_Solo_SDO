@@ -88,6 +88,8 @@ df_flux = pd.DataFrame(
     index=pd.to_datetime(flux_time, format="%Y.%m.%d_%H:%M:%S_TAI"))
 
 # # Using compareTS from signalFunctions
+
+
 def AIA_compare(
     AIA=None,
     PSP=None,
@@ -142,7 +144,6 @@ def AIA_newplot(
     dfPSP=None,
     base_folder=None,
     PeriodMinMax=[5, 20],
-    showSpeed=True,
     spcSpeeds=(None, None),
     regions=None,
 ):
@@ -360,4 +361,3 @@ def superSummaryHMI():
 
 
 HMItogether()  # There is a problem with how files are found. Might need to adapt some parts inside signalHelpers.py
-
