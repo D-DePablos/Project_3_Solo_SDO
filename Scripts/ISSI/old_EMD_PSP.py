@@ -3,6 +3,8 @@
 # %% [markdown]
 # ### Imports
 
+# SEE IN PROJECT 2, baseEMD.py contains new ISSI Structure
+
 # %%
 BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
 
