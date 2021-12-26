@@ -1,7 +1,7 @@
 # Set up UNSAFE_EMD_DATA_PATH: global variable
 from sys import path
 
-BASE_PATH = "/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/"
+BASE_PATH = "/Users/ddp/Documents/PhD/solo_sdo/"
 path.append(f"{BASE_PATH}Scripts/")
 
 from Plasma.SoloData import SoloManager
@@ -28,12 +28,11 @@ makedirs(UNSAFE_EMD_DATA_PATH, exist_ok=True)
 objCad = 60  # Objective cadence in seconds for comparisons
 WVLLIST = [94, 193, 211]
 PERIODMINMAX = [3, 20]
-DELETE = False  # I believe this is not working at all as intended
-SHOWFIG = True
+SHOWFIG = False
 FILTERP = True
 
 # Plot all in-situ variables?
-PLOT_ALL_TOGETHER = True
+PLOT_ALL_TOGETHER = False
 
 # Add residual to non-super summary?
 ADDRESIDUAL = False
@@ -61,7 +60,7 @@ caseName = "accCases" if accelerated == 4 / 3 else "consCases"
 caseName = "newCases_ALLSOLO" if newCases else caseName
 
 with open(
-    f"/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/Scripts/EMDComparison/pickleCases/{caseName}.pickle",
+    f"{BASE_PATH}Scripts/EMDComparison/pickleCases/{caseName}.pickle",
     "rb",
 ) as f:
     import pickle
@@ -87,7 +86,6 @@ def compareLcurvesToSolO(
     expectedLocationList=False,
     PeriodMinMax=[1, 20],
     filterPeriods=False,
-    delete=DELETE,
     showFig=True,
     renormalize=False,
     DETREND_BOX_WIDTH=None,
@@ -138,7 +136,6 @@ def compareLcurvesToSolO(
         useRealTime=True,
         expectedLocationList=expectedLocationList,
         detrend_box_width=DETREND_BOX_WIDTH,
-        delete=delete,
         showFig=showFig,
         renormalize=renormalize,
         showSpeed=True,
@@ -213,7 +210,6 @@ def first_DeriveAndPlotSeparately():
         insituObject = SoloManager(
             times=(start, end),
             objCad=objCad,
-            cdfPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
         )
         insituObject.df = insituObject.df.interpolate()  # Fill gaps
         # Velocities are modified with 4/3 factor. Gives slightly better idea
@@ -235,7 +231,6 @@ def first_DeriveAndPlotSeparately():
 
         # Light Curves
         lc = LcurveManager(
-            csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
             objCad=objCad,
             wavelength=WAVELENGTH,
         )
@@ -270,7 +265,6 @@ def first_DeriveAndPlotSeparately():
                 objDirExt=dirName,
                 filterPeriods=FILTERP,
                 PeriodMinMax=PERIODMINMAX,
-                delete=DELETE,
                 showFig=SHOWFIG,
                 expectedLocationList=[refLocations[index]],
                 renormalize=False,
@@ -282,7 +276,11 @@ def first_DeriveAndPlotSeparately():
 def combinedPlot(superSummaryPlot=False):
     lcDic = {}
     for _wvl in WVLLIST:
-        lcDic[f"{_wvl}"] = LcurveManager(objCad=objCad, wavelength=_wvl)
+        lcDic[f"{_wvl}"] = LcurveManager(
+            objCad=objCad,
+            wavelength=_wvl,
+            csvPath=f"{BASE_PATH}sharedData/",
+        )
         lcDic[f"{_wvl}"].df = lcDic[f"{_wvl}"].df.interpolate()
         try:
             del lcDic[f"{_wvl}"].df["Unnamed: 0"]
@@ -293,7 +291,6 @@ def combinedPlot(superSummaryPlot=False):
     insituObject = SoloManager(
         times=(start, end),
         objCad=objCad,
-        cdfPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/",
     )
     insituObject.df = insituObject.df.interpolate()  # Fill gaps
     # Velocities are modified with 4/3 factor. Gives slightly better idea
@@ -366,7 +363,6 @@ def combinedPlot(superSummaryPlot=False):
         for index, aiaTimes in enumerate(aiaTimesList):
 
             if aiaTimes[0] == datetime(2020, 5, 28, 1, 30):
-                print(aiaTimes[0])
                 # Need to cut up dataframes
                 isTimes = soloTimesList[index]
                 dfInsituCut = insituObject.df[isTimes[0] : isTimes[1]]

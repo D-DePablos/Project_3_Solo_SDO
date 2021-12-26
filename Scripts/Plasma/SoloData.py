@@ -16,25 +16,26 @@ class SoloManager:
         self,
         times=(),
         objCad=3600,
-        cdfPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/"
+        cdfPath="/Users/ddp/Documents/PhD/solo_sdo/unsafe/soloData/",
+        # /home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/unsafe/soloData/"
     ):
-        """ 
+        """
         Variables within the SWEAP CDF:
             [
-                'Epoch', 
-                'Half_interval', 
-                'SCET', 
-                'Info', 
-                'validity', 
-                'N', 
-                'V_SRF', 
-                'V_RTN', 
-                'P_SRF', 
-                'P_RTN', 
-                'TxTyTz_SRF', 
-                'TxTyTz_RTN', 
+                'Epoch',
+                'Half_interval',
+                'SCET',
+                'Info',
+                'validity',
+                'N',
+                'V_SRF',
+                'V_RTN',
+                'P_SRF',
+                'P_RTN',
+                'TxTyTz_SRF',
+                'TxTyTz_RTN',
                 'T'
-            ] 
+            ]
         """
         _swe_df = None
         # Must download myself!
@@ -46,7 +47,8 @@ class SoloManager:
             for i in ("V_RTN", "N", "T", "validity"):
                 if i == "V_RTN":  # Allow for multidimensional
                     for n, arg in zip(
-                        (0, 1, 2), ("_R", "_T", "_N")):  # R is radial velocity
+                        (0, 1, 2), ("_R", "_T", "_N")
+                    ):  # R is radial velocity
                         _df[f"V{arg}"] = cdf[i][:, n]
 
                 else:
@@ -77,22 +79,23 @@ class SoloManager:
         spicedata.get_kernel("solo")
         solo = spice.Trajectory("Solar Orbiter")
         times = list(self.df.index.to_pydatetime())
-        solo.generate_positions(times, 'Sun', 'IAU_SUN')  # Is in KM
+        solo.generate_positions(times, "Sun", "IAU_SUN")  # Is in KM
         self.coordsCarrington = solo.coords.transform_to(
-            frame=frames.HeliographicCarrington)
+            frame=frames.HeliographicCarrington
+        )
 
-    def backmapSun(self,
-                   ssRadius=2.5 * const.R_sun.to(u.km),
-                   accelerated=1,
-                   customSpeed=None):
+    def backmapSun(
+        self, ssRadius=2.5 * const.R_sun.to(u.km), accelerated=1, customSpeed=None
+    ):
         """
-        Backmap to Source Surface and save seeds as self.seeds 
+        Backmap to Source Surface and save seeds as self.seeds
         :param ssRadius: Source surface Radius in meters
         :param accelerated: Acceleration factor. Is 4/3 in classic 1 AU
-        :param modify_V: default AV = AVERAGE. Can use LO and HI to use lowest, highest solar wind velocities in the hour. 
+        :param modify_V: default AV = AVERAGE. Can use LO and HI to use lowest, highest solar wind velocities in the hour.
         """
         from datetime import timedelta
         from astropy.coordinates import SkyCoord
+
         flineCoordsList = []
 
         for i, coord in enumerate(self.coordsCarrington):
@@ -111,15 +114,19 @@ class SoloManager:
             stepRadius = (r.value - ssRadius.value) / len(lonSteps)
             rSteps = np.arange(ssRadius.value, r.value, step=stepRadius)[::-1]
             stepTime = (timeSPC - timeSun).total_seconds() / len(lonSteps)
-            flTimes = [(timeSPC - timedelta(seconds=stepTime * lonstep))
-                       for lonstep in range(len(lonSteps))]
+            flTimes = [
+                (timeSPC - timedelta(seconds=stepTime * lonstep))
+                for lonstep in range(len(lonSteps))
+            ]
             rSteps = rSteps[:-1] if (len(rSteps) > len(lonSteps)) else rSteps
 
-            flineCoords = SkyCoord(lon=lonSteps,
-                                   lat=latSteps,
-                                   radius=rSteps * u.km,
-                                   obstime=flTimes,
-                                   frame="heliographic_carrington")
+            flineCoords = SkyCoord(
+                lon=lonSteps,
+                lat=latSteps,
+                radius=rSteps * u.km,
+                obstime=flTimes,
+                frame="heliographic_carrington",
+            )
             flineCoordsList.append(flineCoords)
 
         self.customSpeed = customSpeed
@@ -128,10 +135,10 @@ class SoloManager:
         self.sourcePointsSPC = self.coordsCarrington.obstime
 
     def plot(self, savePath):
-        """Plots the Solar Orbiter observations and saves to savePath
-        """
+        """Plots the Solar Orbiter observations and saves to savePath"""
 
         import matplotlib.pyplot as plt
+
         plt.figure(figsize=(12, 8))
         plt.scatter(self.df.index, self.df["V_R"], color="black", marker="x")
         plt.xlabel("Time")

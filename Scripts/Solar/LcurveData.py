@@ -5,7 +5,7 @@ import pandas as pd
 class LcurveManager:
     def __init__(
         self,
-        csvPath="/home/diegodp/Documents/PhD/Paper_3/SolO_SDO_EUI/sharedData/",
+        csvPath="/Users/ddp/Documents/PhD/solo_sdo/sharedData/",
         objCad=60,
         wavelength=193,
     ):

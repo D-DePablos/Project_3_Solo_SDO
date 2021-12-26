@@ -20,14 +20,21 @@ from copy import deepcopy
 from glob import glob
 from collections import namedtuple
 
-Hmin = mdates.DateFormatter('%H:%M')
+Hmin = mdates.DateFormatter("%H:%M")
 # Quick fix for cross-package import
 
 emd = EMD()
 vis = Visualisation()
 
-WVLColours = {"94": "green", "171": "orange",
-              "193": "brown", "211": "blue", "HMI": "blue", "ch_open_flux": "blue", "ch_bpoint_flux": "orange"}
+WVLColours = {
+    "94": "green",
+    "171": "orange",
+    "193": "brown",
+    "211": "blue",
+    "HMI": "blue",
+    "ch_open_flux": "blue",
+    "ch_bpoint_flux": "orange",
+}
 alphaWVL = {"94": 0.9, "171": 0.9, "193": 0.7, "211": 0.5, "HMI": 0.9}
 # corrThrPlotList = np.arange(0.70, 1, 0.05)
 corrThrPlotList = np.arange(0.85, 0.901, 0.05)
@@ -46,7 +53,7 @@ titleDic = {
 }
 
 # Set general font size
-plt.rcParams['font.size'] = '16'
+plt.rcParams["font.size"] = "16"
 
 # Dictionary which contains relevant axis for a 9x9 grid for each of the regions
 axDic = {
@@ -83,20 +90,18 @@ def normalize_signal(s: np.ndarray):
     return s
 
 
-def collect_dfs_npys(isDf,
-                     shortDic,
-                     region,
-                     base_folder,
-                     windDisp="60s",
-                     period="3 - 20"):
+def collect_dfs_npys(
+    isDf, shortDic, region, base_folder, windDisp="60s", period="3 - 20"
+):
     def _find_corr_mat(
-            region="chole",
-            shortDic=shortDic,
-            shortID=193,
-            insituDF=None,
-            _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
-            windDisp="60s",
-            period="3 - 20"):
+        region="chole",
+        shortDic=shortDic,
+        shortID=193,
+        insituDF=None,
+        _base_folder="/home/diegodp/Documents/PhD/Paper_3/insituObject_SDO_EUI/unsafe/ISSI/SB_6789/",
+        windDisp="60s",
+        period="3 - 20",
+    ):
         """Finds correlation matrices for all In-situ variables and a given wavelength
 
         Args:
@@ -105,8 +110,7 @@ def collect_dfs_npys(isDf,
             insituParams (list): In situ parameters to find correlation matrices for
         """
         resultingMatrices = {}
-        matrixData = namedtuple("data",
-                                "isData corrMatrix shortData shortTime")
+        matrixData = namedtuple("data", "isData corrMatrix shortData shortTime")
 
         for isparam in insituDF.columns:
             # How do we get in situ data? From above function!
@@ -118,8 +122,11 @@ def collect_dfs_npys(isDf,
             short_D = glob(f"{_subfolder}IMF/short*.npy")
             short_T = shortDic[shortID].index
             resultingMatrices[f"{isparam}"] = matrixData(
-                insituDF[f"{isparam}"], np.load(foundMatrix[0]),
-                np.load(short_D[0]), short_T)
+                insituDF[f"{isparam}"],
+                np.load(foundMatrix[0]),
+                np.load(short_D[0]),
+                short_T,
+            )
 
         return resultingMatrices
 
@@ -127,15 +134,17 @@ def collect_dfs_npys(isDf,
     # Select the correlation matrix for each insituObject variable, given region, given lcurve
     for shortID in shortDic:
         # dataContainer should have all
-        dataContainer = _find_corr_mat(shortID=shortID,
-                                       shortDic=shortDic,
-                                       insituDF=isDf,
-                                       _base_folder=base_folder,
-                                       region=region,
-                                       windDisp=windDisp,
-                                       period=period)
+        dataContainer = _find_corr_mat(
+            shortID=shortID,
+            shortDic=shortDic,
+            insituDF=isDf,
+            _base_folder=base_folder,
+            region=region,
+            windDisp=windDisp,
+            period=period,
+        )
 
-        #namedtuple("data", "isData corrMatrix shortData shortTime")
+        # namedtuple("data", "isData corrMatrix shortData shortTime")
         expandedWvlDic[f"{shortID}"] = dataContainer
     return expandedWvlDic
 
@@ -168,7 +177,7 @@ def transformTimeAxistoVelocity(timeAxis, originTime, SPCKernelName=None):
 
     # Generate a list of times with timeAxis info
     times = list(timeAxis)
-    sp_traj.generate_positions(times, 'Sun', 'IAU_SUN')  # Is in Km
+    sp_traj.generate_positions(times, "Sun", "IAU_SUN")  # Is in Km
     R = sp_traj.coords.radius
     # Calculate dt Necessary for each of the positions. Only uses radius at the time, compares to AIA.
     dtAxis = [(t - originTime).total_seconds() for t in timeAxis]
@@ -194,7 +203,6 @@ def emd_and_save(s, t, saveFolder, save_name, plot=False):
 
     try:
         imfs = np.load(saved_npy)
-        # print(f"loading imfs {saved_npy}")
         return imfs
     except FileNotFoundError:
         pass
@@ -216,12 +224,9 @@ def emd_and_save(s, t, saveFolder, save_name, plot=False):
     return imfs
 
 
-def check_imf_periods(t,
-                      imfs,
-                      filterPeriods=False,
-                      pmin=None,
-                      pmax=None,
-                      filter_low_high=(0, 0)):
+def check_imf_periods(
+    t, imfs, filterPeriods=False, pmin=None, pmax=None, filter_low_high=(0, 0)
+):
     """
     Check period of several IMFs in minutes. Uses values from SignalFilter class definition
     """
@@ -254,9 +259,7 @@ def check_imf_periods(t,
             raise ValueError("Filter larger than IMF length")
 
         Period_valid[:, 0] = False
-        # print(f"Invalidating {filter_low_high[0]}:{len(imfs)} - {filter_low_high[1]}")
-        Period_valid[filter_low_high[0]:len(imfs) - filter_low_high[1],
-                     0] = True
+        Period_valid[filter_low_high[0] : len(imfs) - filter_low_high[1], 0] = True
         Period_valid[:, 1] = np.nan
 
     return Period_valid
@@ -286,8 +289,7 @@ def plot_imfs(time_array, vector, imfs, title, savePath, width, show):
             plt.plot(curr_imf, color="black")
         leg = plt.legend([f"IMF {index}"], loc=1)
         leg.get_frame().set_linewidth(0.0)
-        plt.ylim(curr_imf.mean() - spacing - width,
-                 curr_imf.mean() + spacing + width)
+        plt.ylim(curr_imf.mean() - spacing - width, curr_imf.mean() + spacing + width)
         ax_frame.axes.get_xaxis().set_visible(False)
 
     ax.add_subplot(len(imfs), 1, len(imfs))
@@ -309,15 +311,15 @@ def plot_imfs(time_array, vector, imfs, title, savePath, width, show):
 
 
 def heatmap(
-        data,
-        row_labels,
-        col_labels,
-        valid_data=None,
-        ax=None,
-        cbar_kw={},
-        cbarlabel="",
-        vmin_vmax=(-1, 1),
-        **kwargs,
+    data,
+    row_labels,
+    col_labels,
+    valid_data=None,
+    ax=None,
+    cbar_kw={},
+    cbarlabel="",
+    vmin_vmax=(-1, 1),
+    **kwargs,
 ):
     """
     Create a heatmap from a numpy array and two lists of labels.
@@ -370,10 +372,7 @@ def heatmap(
     ax.tick_params(top=True, bottom=False, labeltop=True, labelbottom=False)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(),
-             rotation=-30,
-             ha="right",
-             rotation_mode="anchor")
+    plt.setp(ax.get_xticklabels(), rotation=-30, ha="right", rotation_mode="anchor")
 
     # Turn spines off and create white grid.
     for edge, spine in ax.spines.items():
@@ -389,12 +388,12 @@ def heatmap(
 
 
 def annotate_heatmap(
-        im,
-        data=None,
-        valfmt="{x:.2f}",
-        textcolors=("black", "white"),
-        threshold=None,
-        **textkw,
+    im,
+    data=None,
+    valfmt="{x:.2f}",
+    textcolors=("black", "white"),
+    threshold=None,
+    **textkw,
 ):
     """
     A function to annotate a heatmap.
@@ -446,11 +445,7 @@ def annotate_heatmap(
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
-            text = im.axes.text(j,
-                                i,
-                                valfmt(data[i, j], None),
-                                fontsize="large",
-                                **kw)
+            text = im.axes.text(j, i, valfmt(data[i, j], None), fontsize="large", **kw)
             texts.append(text)
 
     return texts
@@ -502,8 +497,7 @@ class Signal:
             self.mean = mean
             self.noise = 0
             self.number_of_signals = 0
-            self.location_signal_peak = [
-            ]  # Set the location signal peak as false
+            self.location_signal_peak = []  # Set the location signal peak as false
 
             self.long_signal_time = np.arange(0, duration, step=cadence)
             if sig_type[0] is True:
@@ -524,8 +518,7 @@ class Signal:
                 self.data = custom_data  # If array, can set immediately
                 self.true_time = None
 
-            elif type(custom_data) == pd.DataFrame or type(
-                    custom_data) == pd.Series:
+            elif type(custom_data) == pd.DataFrame or type(custom_data) == pd.Series:
 
                 if type(custom_data.index) == pd.DatetimeIndex:
                     self.true_time = pd.to_datetime(custom_data.index)
@@ -546,14 +539,11 @@ class Signal:
                 ), "Was unable to set true long_signal_time using either index or Time Column"
 
             else:
-                raise ValueError(
-                    f"Did not pass a valid type {type(custom_data)}")
+                raise ValueError(f"Did not pass a valid type {type(custom_data)}")
 
             # Generate constant long_signal_time array for IMFs
             self.duration = self.cadence * len(self.data)
-            self.long_signal_time = np.arange(0,
-                                              self.duration,
-                                              step=self.cadence)
+            self.long_signal_time = np.arange(0, self.duration, step=self.cadence)
 
     def __repr__(self):
         """
@@ -593,8 +583,9 @@ class Signal:
         cad_factor = int(other.cadence / self.cadence)
 
         if self.true_time is not None:
-            self.true_time = self.true_time[::
-                                            cad_factor]  # Lose long_signal_time information
+            self.true_time = self.true_time[
+                ::cad_factor
+            ]  # Lose long_signal_time information
 
         # Get rid of NA values
         _data = self.data
@@ -606,9 +597,9 @@ class Signal:
 
         # Cadence and long_signal_time
         self.cadence = other.cadence
-        self.long_signal_time = np.arange(0,
-                                          len(self.data) * self.cadence,
-                                          step=self.cadence)
+        self.long_signal_time = np.arange(
+            0, len(self.data) * self.cadence, step=self.cadence
+        )
 
         # Update name to reflect decimation
         self.name = f"Decimated {self.name}"
@@ -647,8 +638,9 @@ class Signal:
 
         # Create a gaussian to put inside masked array
         gaussian = scipy_sig.general_gaussian(M=extent, p=1, sig=std)
-        gaussian = gaussian - (gaussian[0] - self.data.mean()
-                               )  # Only works if flat signal!
+        gaussian = gaussian - (
+            gaussian[0] - self.data.mean()
+        )  # Only works if flat signal!
         #
 
         # This is the specific signal that has been placed inside.
@@ -691,8 +683,10 @@ class Signal:
                             # Append twice, once at same value, once at half the gradient up/down
                             for n_g in range(alter_mode[key]):
                                 # Doing it like this means that you never reach the higher value - desired behaviour!
-                                temp_gaussian.append(gaussian[i] + (
-                                    grad * n_g / len(range(alter_mode[key]))))
+                                temp_gaussian.append(
+                                    gaussian[i]
+                                    + (grad * n_g / len(range(alter_mode[key])))
+                                )
 
                     gaussian = np.array(temp_gaussian)
                 elif key == "height_mod":
@@ -742,8 +736,9 @@ class Signal:
         # In the case where there is a signal peak already
         self.location_signal_peak.append(where)
         if self.number_of_signals == 0:
-            mask = ma.masked_inside(self.long_signal_time, where,
-                                    where + len(signal) * 12 - 1)
+            mask = ma.masked_inside(
+                self.long_signal_time, where, where + len(signal) * 12 - 1
+            )
             mask = ma.getmask(mask)
 
             # Only works if flat signal!
@@ -754,12 +749,14 @@ class Signal:
 
             self.name = (
                 # First long_signal_time change the title
-                f"Modified {self.name}")
+                f"Modified {self.name}"
+            )
 
         else:
             # This simply replaces and that is not correct. Should build up
-            mask = ma.masked_inside(self.long_signal_time, where,
-                                    where + len(signal) * 12 - 1)
+            mask = ma.masked_inside(
+                self.long_signal_time, where, where + len(signal) * 12 - 1
+            )
             mask = ma.getmask(mask)
 
             # Only works if flat signal!
@@ -769,7 +766,8 @@ class Signal:
             self.data[mask] = signal + self.data[mask] - self.mean
             self.name = (
                 # First long_signal_time change the title
-                f"Duplicated {self.name}")
+                f"Duplicated {self.name}"
+            )
 
         self.number_of_signals += 1
 
@@ -797,7 +795,6 @@ class SignalFunctions(Signal):
         self.saveformat = signal.saveformat if saveformat is None else saveformat
 
         if norm:
-            print(f"Normalising {self.signalObject.name}")
             self.s = normalize_signal(signal.data.copy())
         else:
             self.s = signal.data.copy()
@@ -839,10 +836,9 @@ class SignalFunctions(Signal):
 
         return f"SignalFunctions({self.name})"
 
-    def plot_norm(self,
-                  save_to=None,
-                  labels=("Time (s)", "Data (arb.units)"),
-                  show=True):
+    def plot_norm(
+        self, save_to=None, labels=("Time (s)", "Data (arb.units)"), show=True
+    ):
 
         from matplotlib import rc
 
@@ -854,8 +850,7 @@ class SignalFunctions(Signal):
         plt.ylabel(labels[1])
 
         if save_to:
-            plt.savefig(
-                f"{save_to}{self.name}_{self.cadence}s.{self.saveformat}")
+            plt.savefig(f"{save_to}{self.name}_{self.cadence}s.{self.saveformat}")
 
         if show:
             plt.show()
@@ -863,16 +858,16 @@ class SignalFunctions(Signal):
         plt.close("all")
 
     def generate_windows(
-            self,
-            other,
-            windowDisp,
-            plot_long_imfs=False,
-            long_window_imf_list=[],
-            filterIMFs_on_plot=False,
-            useRealTime=False,
-            filterPeriods=False,
-            filter_low_high=(0, 0),
-            renormalize=False,
+        self,
+        other,
+        windowDisp,
+        plot_long_imfs=False,
+        long_window_imf_list=[],
+        filterIMFs_on_plot=False,
+        useRealTime=False,
+        filterPeriods=False,
+        filter_low_high=(0, 0),
+        renormalize=False,
     ):
         """
         Generate array of relevant windows with two timeseries of different length
@@ -922,10 +917,8 @@ class SignalFunctions(Signal):
 
         # Setup to perform many EMDs on long dataset
         self.no_displacements = int(
-            np.floor(
-                (long.t[-1] - short.t[-1]) / self.windowDisp))  # In seconds
-
-        print(f"Found {self.no_displacements} displacements possible.")
+            np.floor((long.t[-1] - short.t[-1]) / self.windowDisp)
+        )  # In seconds
 
         # If the correlation matrix is set, skip
         try:
@@ -963,18 +956,18 @@ class SignalFunctions(Signal):
         # While inside the long timeseries
         while height < short.no_displacements:
             # Only do if necessary!
-            if (height in long_window_imf_list
-                    and plot_long_imfs) or (plot_long_imfs == False):
+            if (height in long_window_imf_list and plot_long_imfs) or (
+                plot_long_imfs == False
+            ):
                 # Find and set relevant window
                 i = int(np.where(long.t == left_bound)[0])
                 j = int(np.where(long.t == right_bound)[0])
 
                 # Make copies of data instead of using directly
-                _data_long = deepcopy(long.s[i:j + 1])
+                _data_long = deepcopy(long.s[i : j + 1])
                 _data_long = _data_long.reshape(len(_data_long))
-                _data_long = normalize_signal(
-                    _data_long) if renormalize else _data_long
-                _time_long = deepcopy(long.t[i:j + 1])
+                _data_long = normalize_signal(_data_long) if renormalize else _data_long
+                _time_long = deepcopy(long.t[i : j + 1])
 
                 # Set values for array
                 complete_array[0, height, :] = _time_long
@@ -1036,10 +1029,6 @@ class SignalFunctions(Signal):
                         with_residue=True,
                     )
 
-                    print(
-                        f"Saved long IMF {height:08d} figures to {long.saveFolder}IMFplots/ \n"
-                    )
-
                 # For all of the short, long IMFs
                 for i, row in enumerate(short_imfs):
                     short_valid = valid_imfs_short[i, 0]
@@ -1057,8 +1046,7 @@ class SignalFunctions(Signal):
                         corr_matrix[i, j, height, 2] = valid
 
                 if useRealTime:  # We only have the real time in some ocasions
-                    mid_point_time = np.floor(
-                        (_time_long[-1] + _time_long[0]) / 2)
+                    mid_point_time = np.floor((_time_long[-1] + _time_long[0]) / 2)
                     corr_matrix[0, 0, height, 3] = mid_point_time
 
             # Increase height by one before advancing
@@ -1129,7 +1117,8 @@ class SignalFunctions(Signal):
         plot_index = 1
 
         for index, (imf, (flag, P), inst_freq) in enumerate(
-                zip(self.imfs, self.period_valid, self.inst_freq)):
+            zip(self.imfs, self.period_valid, self.inst_freq)
+        ):
             if self.filtered and flag or not self.filtered:
 
                 ax = axs[plot_index][0]
@@ -1171,33 +1160,33 @@ class SignalFunctions(Signal):
                 plot_index += 1
 
         makedirs(savepath, exist_ok=True)
-        plt.savefig(f"{savepath}{save_name}.{self.saveformat}",
-                    bbox_inches="tight",
-                    dpi=300)
+        plt.savefig(
+            f"{savepath}{save_name}.{self.saveformat}", bbox_inches="tight", dpi=300
+        )
         # plt.show()
         plt.close()
-        print(f"Saved IMFs to {savepath} \n")
 
     def plot_all_results(
-            self,
-            other,
-            Label_long_ts="No name",
-            useRealTime=False,
-            expectedLocationList=False,
-            savePath=None,
-            plot_heatmaps=False,
-            minCorrThrPlot=0.7,
-            corrThrPlotList=corrThrPlotList,
-            margin_hours=0.5,
-            bar_width=1.2,
-            filterPeriods=True,
-            showFig=False,
-            showSpeed=False,  # Whether to show speed instead of time
-            SPCKernelName="solo",
-            LOSPEED=255,
-            HISPEED=285,
-            showLocationList=False,
-            ffactor=1):
+        self,
+        other,
+        Label_long_ts="No name",
+        useRealTime=False,
+        expectedLocationList=False,
+        savePath=None,
+        plot_heatmaps=False,
+        minCorrThrPlot=0.7,
+        corrThrPlotList=corrThrPlotList,
+        margin_hours=0.5,
+        bar_width=1.2,
+        filterPeriods=True,
+        showFig=False,
+        showSpeed=False,  # Whether to show speed instead of time
+        SPCKernelName="solo",
+        LOSPEED=255,
+        HISPEED=285,
+        showLocationList=False,
+        ffactor=1,
+    ):
         """
         This function plots the number of IMFs with high correlation for all heights
         Takes signal objects.
@@ -1213,22 +1202,26 @@ class SignalFunctions(Signal):
 
         except FileNotFoundError:
             raise InterruptedError(
-                "Please use generate windows before plotting results")
+                "Please use generate windows before plotting results"
+            )
 
         assert self.pmin == other.pmin and self.pmax == other.pmax, (
             f"Unequal periodicity filtering of"
-            f"{self.pmin}:{self.pmax} to {other.pmin}:{other.pmax}")
+            f"{self.pmin}:{self.pmax} to {other.pmin}:{other.pmax}"
+        )
 
         assert len(self.s) < len(other.s), (
             "Data of other timeseries is smaller than given timeseries."
-            "Please swap their positions")
+            "Please swap their positions"
+        )
 
         makedirs(savePath, exist_ok=True)
 
         # Init the pearson, spearman and approximate location lists
         # pearsonr_array, spearmanr_array, approximate_locations = [], [], []
         corr_locations = np.ndarray(
-            (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 3))
+            (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 3)
+        )
 
         # Derive the relevant correlation matrix for valid values
         # In the case where there is a signal peak in "Other object"
@@ -1240,7 +1233,8 @@ class SignalFunctions(Signal):
             """
             # Arrays that contains positive / negative pairs
             pe_sp_pairs = np.ndarray(
-                (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 2))
+                (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 2)
+            )
 
         for height in range(len(corr_matrix[0, 0, :, 0])):
             # Get all pearson, spearman, and valid values
@@ -1250,8 +1244,7 @@ class SignalFunctions(Signal):
 
             if useRealTime:
                 midpoint = corr_matrix[0, 0, height, 3]
-                midpoint_time = other.true_time[0] + timedelta(
-                    seconds=midpoint)
+                midpoint_time = other.true_time[0] + timedelta(seconds=midpoint)
                 time = midpoint_time
 
             else:
@@ -1285,8 +1278,7 @@ class SignalFunctions(Signal):
             rvalid = spearman[valid == 1]
 
             # For all relevant correlation thresholds, depending on list
-            relevant_pearson_index = np.where(
-                corrThrPlotList == minCorrThrPlot)[0][0]
+            relevant_pearson_index = np.where(corrThrPlotList == minCorrThrPlot)[0][0]
 
             for index, corr_thr in enumerate(corrThrPlotList):
                 _number_high_pe = len(pvalid[np.abs(pvalid) >= corr_thr])
@@ -1305,8 +1297,7 @@ class SignalFunctions(Signal):
                 #         pe_sp_pairs[height, index, 1] = -_number_high_sp
 
             # Only generate heatmap when above threshold
-            if plot_heatmaps and corr_locations[height, relevant_pearson_index,
-                                                1] >= 1:
+            if plot_heatmaps and corr_locations[height, relevant_pearson_index, 1] >= 1:
                 # and 4600 < height < 6000  # Last and conditional for heatmaps
                 makedirs(f"{self.saveFolder}corr_matrix/", exist_ok=True)
 
@@ -1321,7 +1312,6 @@ class SignalFunctions(Signal):
 
                 if not filterPeriods:
                     # In this case, need to cut by specific amount of data
-                    # print(f"Filtering with {self.filter_low_high}")
                     low = self.filter_low_high[0]
                     high = -self.filter_low_high[1]
 
@@ -1337,14 +1327,16 @@ class SignalFunctions(Signal):
 
                     for col in range(pearson_hmap.shape[1]):
                         col_labels.append(
-                            f"WIND IMF {(col) + 1}/ {pearson_hmap.shape[1]}")
+                            f"WIND IMF {(col) + 1}/ {pearson_hmap.shape[1]}"
+                        )
                 else:
                     low = 0
                     high = -1
                     # When filtering depending on periods, the number of ignored imfs is different per step. Is this a problem?
 
-                    pearson_hmap = pearson_masked[low:high, low:
-                                                  high]  # Eliminate residual
+                    pearson_hmap = pearson_masked[
+                        low:high, low:high
+                    ]  # Eliminate residual
                     valid_hmap = valid_masked[low:high, low:high]
                     pvalue_hmap = pvalue_masked[low:high, low:high]
 
@@ -1355,7 +1347,8 @@ class SignalFunctions(Signal):
 
                     for col in range(pearson_hmap.shape[1]):
                         col_labels.append(
-                            f"WIND IMF {(col) + 1}/ {pearson_hmap.shape[1]}")
+                            f"WIND IMF {(col) + 1}/ {pearson_hmap.shape[1]}"
+                        )
 
                 # Plot Heatmap
                 plt.figure(figsize=(12, 12))
@@ -1369,9 +1362,9 @@ class SignalFunctions(Signal):
                     cmap="RdBu",
                     cbarlabel=f"PearsonR correlation",
                 )
-                _ = annotate_heatmap(im,
-                                     valfmt="{x:.2f}",
-                                     textcolors=["black", "black"])
+                _ = annotate_heatmap(
+                    im, valfmt="{x:.2f}", textcolors=["black", "black"]
+                )
 
                 # Title information is contained in filename instead
                 # plt.title(f"Correlation matrix at window #{height} {time}")
@@ -1384,7 +1377,6 @@ class SignalFunctions(Signal):
 
                 plt.tight_layout(pad=0.001)
                 plt.savefig(fig_locn, bbox_inches="tight", dpi=300)
-                print(f"Saved heatmap to {fig_locn}")
                 # plt.show()
                 plt.close()
 
@@ -1400,9 +1392,9 @@ class SignalFunctions(Signal):
                     short_signalvmin_vmax=[0, 1],
                     cbarlabel=f"P-values per IMF",
                 )
-                _ = annotate_heatmap(im,
-                                     valfmt="{x:.2f}",
-                                     textcolors=["black", "black"])
+                _ = annotate_heatmap(
+                    im, valfmt="{x:.2f}", textcolors=["black", "black"]
+                )
 
                 # Title information is contained in filename instead
                 # plt.title(f"Correlation matrix at window #{height} {time}")
@@ -1415,12 +1407,11 @@ class SignalFunctions(Signal):
 
                 plt.tight_layout(pad=0.001)
                 plt.savefig(fig_locn, bbox_inches="tight", dpi=300)
-                print(f"Saved pvalue to {fig_locn}")
                 plt.close()
 
                 def create_ts_plot(a=self.s, b=other.s, start=height):
-                    c = b[start:start + len(a)]
-                    t = other.t[start:start + len(a)] / 60
+                    c = b[start : start + len(a)]
+                    t = other.t[start : start + len(a)] / 60
 
                     plt.figure(figsize=(16, 12))
                     plt.plot(t, a, color="black", label=r"AIA$_{synth}$")
@@ -1428,9 +1419,7 @@ class SignalFunctions(Signal):
                     plt.ylabel("Normalised value")
                     plt.xlabel("Minutes since start")
                     plt.legend()
-                    plt.title(
-                        f"Direct Pearson R correlation: {pearsonr(a, c)[0]:.2f}"
-                    )
+                    plt.title(f"Direct Pearson R correlation: {pearsonr(a, c)[0]:.2f}")
                     save_to = f"{self.saveFolder}corr_matrix/IMF_Heatmap{height:08d}_{time}_plot.{self.saveformat}"
                     plt.savefig(save_to, bbox_inches="tight", dpi=300)
                     # plt.show()
@@ -1451,10 +1440,8 @@ class SignalFunctions(Signal):
         long_true_values = long_signal.base_signal
 
         if useRealTime:
-            short_duration = short_signal.true_time[
-                -1] - short_signal.true_time[0]
+            short_duration = short_signal.true_time[-1] - short_signal.true_time[0]
             time_axis = long_signal.true_time
-            print(long_signal.true_time)
         else:
             short_duration = (short_signal.t[-1] - short_signal.t[0]) / 60
             time_axis = long_signal.t / 60
@@ -1466,11 +1453,9 @@ class SignalFunctions(Signal):
 
         # First plot
         ax = axs[0]
-        ax.plot(time_axis,
-                long_true_values,
-                color="black",
-                label=Label_long_ts,
-                alpha=1)
+        ax.plot(
+            time_axis, long_true_values, color="black", label=Label_long_ts, alpha=1
+        )
 
         if filterPeriods:
             ax.set_title(f"{self.pmin} < {r'$P_{IMF}$'} < {self.pmax} min")
@@ -1500,8 +1485,7 @@ class SignalFunctions(Signal):
                 # Saved only sometimes!
                 true_time_secs = corr_matrix[0, 0, :, 3]
             except IndexError as ind_err:
-                raise IndexError(
-                    "Please ensure that the true timeseries is saved!")
+                raise IndexError("Please ensure that the true timeseries is saved!")
 
             ttindex = (true_time_secs / long_signal.cadence).astype(int)
             true_time_datetime = long_signal.true_time[ttindex]
@@ -1542,8 +1526,7 @@ class SignalFunctions(Signal):
 
             if useRealTime:
                 midpoint = corr_matrix[0, 0, height, 3]
-                midpoint_time = other.true_time[0] + timedelta(
-                    seconds=midpoint)
+                midpoint_time = other.true_time[0] + timedelta(seconds=midpoint)
                 time = midpoint_time
                 barchart_time = time.to_pydatetime()
 
@@ -1628,7 +1611,8 @@ class SignalFunctions(Signal):
             vSWAxis = transformTimeAxistoVelocity(
                 time_axis,
                 originTime=short_signal.true_time[0].to_pydatetime(),
-                SPCKernelName=SPCKernelName)
+                SPCKernelName=SPCKernelName,
+            )
 
             axV = ax2.twiny()
             # axV.plot(vSWAxis, np.repeat(0.99, len(vSWAxis)), alpha=0)
@@ -1647,8 +1631,7 @@ class SignalFunctions(Signal):
             if ffactor != 1:
                 accLO, accHI = [x / ffactor for x in (LOSPEED, HISPEED)]
 
-                if vSWAxis[0] < accLO < vSWAxis[-1] and vSWAxis[
-                        0] < accHI < vSWAxis[1]:
+                if vSWAxis[0] < accLO < vSWAxis[-1] and vSWAxis[0] < accHI < vSWAxis[1]:
 
                     axV.axvspan(
                         xmin=accLO,
@@ -1685,8 +1668,8 @@ class SignalFunctions(Signal):
         Creates dataframe with hitrate and prints it out
         """
         assert (
-            self.hitrate
-            is not False), "Please calculate hitrates with generate_windows"
+            self.hitrate is not False
+        ), "Please calculate hitrates with generate_windows"
 
         self.table = {}
         df_pe, df_sp = self.hitrate
@@ -1714,10 +1697,8 @@ class SignalFunctions(Signal):
 
         if save:
             # This will be one of the results dataframes
-            self.table["pearson"].to_csv(
-                f"{self.saveFolder}pearson_hitrate.csv")
-            self.table["spearman"].to_csv(
-                f"{self.saveFolder}spearman_hitrate.csv")
+            self.table["pearson"].to_csv(f"{self.saveFolder}pearson_hitrate.csv")
+            self.table["spearman"].to_csv(f"{self.saveFolder}spearman_hitrate.csv")
 
         return self.table
 
@@ -1803,7 +1784,7 @@ def compareTS(
     labelOther is the label to be shown on second dataset
 
     winDispList is a list of window displacements, in seconds
-    corrThrPlotList is 
+    corrThrPlotList is
 
     labelOther = Which label to show for other dataset
     """
@@ -1824,9 +1805,9 @@ def compareTS(
         signalOther.detrend(box_width=detrend_box_width)
 
         # Add functionality, filter and generate IMFs
-        otherSigFunc = SignalFunctions(signalOther,
-                                       filterIMFs=True,
-                                       PeriodMinMax=PeriodMinMax)
+        otherSigFunc = SignalFunctions(
+            signalOther, filterIMFs=True, PeriodMinMax=PeriodMinMax
+        )
 
         # For each of the in-situ variables
         for varSelf in dfSelf:
@@ -1898,7 +1879,7 @@ def plot_super_summary(
     showFig=False,
     figName="",
     gridRegions=True,
-    insituArrayFreq="1min"
+    insituArrayFreq="1min",
 ):
     """Plots a "super" summary with info about all selected regions
 
@@ -1930,18 +1911,14 @@ def plot_super_summary(
     # TODO: Need to make it so sometimes the nrows is different to ncols
     if gridRegions == True:
         nrowsCols = int(np.sqrt(len(regions)))
-        fig, axs = plt.subplots(nrowsCols,
-                                nrowsCols,
-                                figsize=(16, 10),
-                                sharex=True,
-                                sharey=True)
+        fig, axs = plt.subplots(
+            nrowsCols, nrowsCols, figsize=(16, 10), sharex=True, sharey=True
+        )
     else:
         nrows = gridRegions[0]
         ncols = gridRegions[1]
         fig, axs = plt.subplots(
-            nrows=nrows, ncols=ncols,
-            sharex=gridRegions[2],
-            sharey=gridRegions[3]
+            nrows=nrows, ncols=ncols, sharex=gridRegions[2], sharey=gridRegions[3]
         )
 
     for i, region in enumerate(regions):
@@ -1973,9 +1950,9 @@ def plot_super_summary(
             # In situ times
             insituStTime = longSpan[0]
             insituEndTime = longSpan[1]
-            insituArray = pd.date_range(start=insituStTime,
-                                        end=insituEndTime,
-                                        freq=insituArrayFreq)
+            insituArray = pd.date_range(
+                start=insituStTime, end=insituEndTime, freq=insituArrayFreq
+            )
 
             # print(f"{insituArray[0]}  \n   TO     \n    {insituArray[-1]}")
             for _wvl in wvlList:
@@ -2000,8 +1977,7 @@ def plot_super_summary(
 
                         # Create the midpointTimes list to act as index
                         midpoint = corr_matrix[0, 0, height, 3]
-                        midpoint_time = insituStTime + timedelta(
-                            seconds=midpoint)
+                        midpoint_time = insituStTime + timedelta(seconds=midpoint)
                         midpointTimes.append(midpoint_time)
 
                     # Transform to real time
@@ -2019,11 +1995,9 @@ def plot_super_summary(
 
                     dotSize = 0
                     for corrIndex, corr_thr in enumerate(corrThrPlotList):
-                        _number_high_pe = len(
-                            pvalid[np.abs(pvalid) >= corr_thr])
+                        _number_high_pe = len(pvalid[np.abs(pvalid) >= corr_thr])
                         # corr_locations[height, index, 1] = _number_high_pe
-                        _number_high_sp = len(
-                            rvalid[np.abs(rvalid) >= corr_thr])
+                        _number_high_sp = len(rvalid[np.abs(rvalid) >= corr_thr])
                         # corr_locations[height, index, 2] = _number_high_sp
 
                         if _number_high_pe > 0:
@@ -2037,11 +2011,13 @@ def plot_super_summary(
             dfDots.index = midpointTimes
 
             # Plot inside each of the squares
-            ax.plot(insituArray,
-                    np.repeat(aiaT, len(insituArray)),
-                    linewidth=1.2,
-                    color="black",
-                    alpha=0.5)
+            ax.plot(
+                insituArray,
+                np.repeat(aiaT, len(insituArray)),
+                linewidth=1.2,
+                color="black",
+                alpha=0.5,
+            )
 
             Vaxis = transformTimeAxistoVelocity(
                 insituArray,
@@ -2077,7 +2053,7 @@ def plot_super_summary(
                 alphaList = [
                     alphaWVL[_wvl] if x > 0 else 0 for x in dfDots[_wvl].values
                 ]
-                _msize = 100 * (dfDots[_wvl].values)**2
+                _msize = 100 * (dfDots[_wvl].values) ** 2
                 if len(corrThrPlotList) == 1:
                     _msize = 100
 
@@ -2104,11 +2080,13 @@ def plot_super_summary(
             alpha=0.6,
         )
 
-        ax.fill_betweenx(aiaTimes,
-                         list_times_same_speed,
-                         list_times_same_speed_LOW,
-                         color="orange",
-                         alpha=0.2)
+        ax.fill_betweenx(
+            aiaTimes,
+            list_times_same_speed,
+            list_times_same_speed_LOW,
+            color="orange",
+            alpha=0.2,
+        )
 
         # Show average speed (not necessarily centre)
         ax.plot(
@@ -2116,26 +2094,28 @@ def plot_super_summary(
             aiaTimes,
             color="red",
             alpha=0.8,
-            linewidth=2,)
+            linewidth=2,
+        )
 
     # Custom legend
     legend_elements = []
     for j, corrThr in enumerate(corrThrPlotList):
         _mkrsize = 10 + j * 8
         # Should be 0 0
-        _legendElement = Line2D([list_times_same_speed_LOW[0]], [aiaTimes[0]],
-                                marker='o',
-                                color='w',
-                                label=f'{corrThr:.02f}',
-                                markerfacecolor='k',
-                                markersize=_mkrsize)
+        _legendElement = Line2D(
+            [list_times_same_speed_LOW[0]],
+            [aiaTimes[0]],
+            marker="o",
+            color="w",
+            label=f"{corrThr:.02f}",
+            markerfacecolor="k",
+            markersize=_mkrsize,
+        )
 
         legend_elements.append(_legendElement)
 
     fig.legend(handles=legend_elements)
-    fig.suptitle(
-        f" Expected velocities {speedSuper} - {speedSuperLow} km/s in yellow"
-    )
+    fig.suptitle(f" Expected velocities {speedSuper} - {speedSuperLow} km/s in yellow")
     fig.supxlabel(f"Time at SolO ({titleDic[insituParam]})")
     fig.supylabel("Time at Source Surface = 2.5 Rsun")
 
@@ -2156,17 +2136,17 @@ def plot_super_summary(
 
 
 def new_plot_format(
-        dfInsitu,
-        shortDic,
-        regions,
-        base_folder,
-        period,
-        addResidual=True,
-        addEMDLcurves=True,
-        SPCKernelName=None,
-        spcSpeeds=(200, 300),
-        showFig=False,
-        windDisp="60s"
+    dfInsitu,
+    shortDic,
+    regions,
+    base_folder,
+    period,
+    addResidual=True,
+    addEMDLcurves=True,
+    SPCKernelName=None,
+    spcSpeeds=(200, 300),
+    showFig=False,
+    windDisp="60s",
 ):
     """
     This new plot format requires rest of plots to have been made and correlations calculated!
@@ -2185,7 +2165,8 @@ def new_plot_format(
 
         # Prepare the array with matches
         corr_locations = np.ndarray(
-            (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 3))
+            (len(corr_matrix[0, 0, :, 0]), len(corrThrPlotList), 3)
+        )
 
         axBar = ax.twinx()
         for height in range(len(corr_matrix[0, 0, :, 0])):
@@ -2264,18 +2245,20 @@ def new_plot_format(
         n_insitu = len(insituList)
 
         nplots = n_wvl if n_wvl >= n_insitu else n_insitu
-        RSDuration = shortDic[wvlList[0]].index[-1] - \
-            shortDic[wvlList[0]].index[0]
+        RSDuration = shortDic[wvlList[0]].index[-1] - shortDic[wvlList[0]].index[0]
 
         # Create one figure per region, per aiaTime
-        fig, axs = plt.subplots(nrows=nplots,
-                                ncols=2,
-                                figsize=(16, 10),
-                                sharex="col",
-                                gridspec_kw={'width_ratios': [4, 1]})
+        fig, axs = plt.subplots(
+            nrows=nplots,
+            ncols=2,
+            figsize=(16, 10),
+            sharex="col",
+            gridspec_kw={"width_ratios": [4, 1]},
+        )
         fig.suptitle(
             f'Region {region} -> AIA: {shortDic[wvlList[0]].index[0].strftime(format="%Y-%m-%d %H:%M")}',
-            size=25)
+            size=25,
+        )
 
         # Delete all axis. If used they are shown
         for ax in axs:
@@ -2320,11 +2303,13 @@ def new_plot_format(
             # Plot bars within In situ chart and get IMF validity per WVL
             for wvl in wvlList:
                 corrMatrix = r[f"{wvl}"][f"{isVar}"].corrMatrix
-                validIMFsMatrix = doBarplot(axIS,
-                                            ISTime=isTuple.isData.index,
-                                            RSDuration=RSDuration,
-                                            corr_matrix=corrMatrix,
-                                            barColour=WVLColours[f"{wvl}"])
+                validIMFsMatrix = doBarplot(
+                    axIS,
+                    ISTime=isTuple.isData.index,
+                    RSDuration=RSDuration,
+                    corr_matrix=corrMatrix,
+                    barColour=WVLColours[f"{wvl}"],
+                )
 
                 if i == n_insitu - 1:
                     WVLValidity[f"{wvl}"] = validIMFsMatrix[:, 0]
@@ -2350,12 +2335,14 @@ def new_plot_format(
             if addResidual:
                 # Plot residual, then add it to all cases
                 wvlEMD[:-1] = wvlEMD[:-1] + wvlEMD[-1]
-                plt.plot(wvlTime,
-                         wvlEMD[-1],
-                         color="red",
-                         linestyle="--",
-                         alpha=0.8,
-                         label="Residual")
+                plt.plot(
+                    wvlTime,
+                    wvlEMD[-1],
+                    color="red",
+                    linestyle="--",
+                    alpha=0.8,
+                    label="Residual",
+                )
                 wvlDataLabel = "Lcurve"
 
             # Plot original data
@@ -2366,9 +2353,9 @@ def new_plot_format(
                 alpha=0.7,
             )
 
-            plt.title(wvlDataLabel + f" {wvl} Ang.",
-                      color=WVLColours[f"{wvl}"],
-                      fontsize=20)
+            plt.title(
+                wvlDataLabel + f" {wvl} Ang.", color=WVLColours[f"{wvl}"], fontsize=20
+            )
             if addEMDLcurves:
                 for k, wvlemd in enumerate(wvlEMD[1:-1]):
                     if int(WVLValidity[f"{wvl}"][k]) == 1:
@@ -2384,12 +2371,12 @@ def new_plot_format(
                 axRE.xaxis.set_major_locator(mdates.HourLocator(interval=1))
 
         from os import makedirs
+
         saveFolder = f"{base_folder}0_Compressed/{period[0]} - {period[1]}/"
         makedirs(saveFolder, exist_ok=True)
         plt.tight_layout()
         if showFig:
             plt.show()
-        print(f"Region {region}")
         plt.savefig(
             f"{saveFolder}{region}{'' if not addResidual else 'with_residual'}.png"
         )
