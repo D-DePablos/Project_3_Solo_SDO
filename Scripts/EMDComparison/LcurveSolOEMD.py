@@ -1,4 +1,7 @@
 # Set up UNSAFE_EMD_DATA_PATH: global variable
+import warnings
+
+warnings.filterwarnings("ignore")
 from sys import path
 
 BASE_PATH = "/Users/ddp/Documents/PhD/solo_sdo/"
@@ -32,7 +35,7 @@ SHOWFIG = False
 FILTERP = True
 
 # Plot all in-situ variables?
-PLOT_ALL_TOGETHER = False
+PLOT_ALL_TOGETHER = True
 
 # Add residual to non-super summary?
 ADDRESIDUAL = False
@@ -205,6 +208,7 @@ def extractDiscreteExamples(Caselist, margin, AIAduration=1):
 def first_DeriveAndPlotSeparately():
     # The main program uses each of the wavelengths separately
     for wv in WVLLIST:
+        print(f"Started {wv}")
         WAVELENGTH = wv
 
         insituObject = SoloManager(

@@ -206,6 +206,9 @@ def emd_and_save(s, t, saveFolder, save_name, plot=False):
         return imfs
     except FileNotFoundError:
         pass
+    except ValueError:
+        # If there is a value error, it means cannot load pickled data
+        pass
 
     # Will always use EMD. Will always get imfs and residue separately
     imfs = emd.emd(S=s, T=t)
@@ -885,8 +888,6 @@ class SignalFunctions(Signal):
         self.path_to_signal = f"{short.saveFolder}Split_signal_all_IMFs.npy"
         self.path_to_corr_matrix = f"{short.saveFolder}IMF/Corr_matrix_all.npy"
         self.windowDisp = windowDisp
-
-        print(f"Saving IMF files to {short.saveFolder}")
 
         short_imfs = emd_and_save(
             s=short.s,
