@@ -7,13 +7,13 @@ from multiprocessing import Process
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sunpy.visualization.colormaps as cm
 
 
 class AstroMap:
     """
     This class is able to download and use fits files for ligthcurves.
     """
+
     def __init__(
         self,
         global_save_path,
@@ -66,7 +66,7 @@ class AstroMap:
         :return: Returns height, length at which box is located
         """
 
-        array = np.arange(0, n_by_n**2, 1)
+        array = np.arange(0, n_by_n ** 2, 1)
         array = np.split(array, n_by_n)
         array = np.vstack(array)
 
@@ -125,10 +125,7 @@ class AstroMap:
                         # Plot lightcurve and corresponding column
                         plt.subplot(grs[numpyrow, 1])
                         ax = plt.gca()
-                        plt.plot(timearr,
-                                 curr_lcurve,
-                                 linewidth=2,
-                                 color="black")
+                        plt.plot(timearr, curr_lcurve, linewidth=2, color="black")
                         ax.axvline(
                             x=curr_time,
                             color="black",
@@ -152,7 +149,8 @@ class AstroMap:
         if combo_images == []:
             raise ValueError(
                 f"No images were found in {self.global_save_path}Combo/. "
-                f"/n Please use the astro_plot function first")
+                f"/n Please use the astro_plot function first"
+            )
 
         lcurve_data = np.load(f"{self.global_save_path}lcurves.npy")
 
@@ -163,8 +161,9 @@ class AstroMap:
 
         # Now need to separate lightcurves as required:
         grs = gs.GridSpec(lcurve_data.shape[0], 2, width_ratios=(1, 4))
-        index_split = np.array_split(np.array(np.arange(len(combo_images))),
-                                     self.n_cpus)
+        index_split = np.array_split(
+            np.array(np.arange(len(combo_images))), self.n_cpus
+        )
 
         proc = []
 
@@ -209,8 +208,7 @@ class AstroMap:
         comb_times = comb_times[1:]
         np.save(f"{self.global_save_path}times.npy", comb_times)
 
-        all_lcurves = sorted(
-            glob.glob(f"{self.global_save_path}lcurves_*.npy"))
+        all_lcurves = sorted(glob.glob(f"{self.global_save_path}lcurves_*.npy"))
         comb_lcurves = np.empty_like(np.load(all_lcurves[0])[:, :, 0:2])
 
         for index, file in enumerate(all_lcurves):
@@ -264,7 +262,8 @@ class AstroMap:
         # Create arrays which are split, as well as corresponding indices to save images
         split_file_arr = np.array_split(files_array, self.n_cpus)
         split_index_array = np.array_split(
-            np.array(np.arange(len(files_array))), self.n_cpus)
+            np.array(np.arange(len(files_array))), self.n_cpus
+        )
 
         # Initialize required multiprocessing methods
         # According to some website, Pool is better when more than 10 cores are available. (Overhead big otherwise)
@@ -378,7 +377,8 @@ class AstroMap:
         combo_images = sorted(glob.glob(f"{self.global_save_path}Combo/*.png"))
 
         lcurve_data = np.load(
-            f"{self.global_save_path}lcurves.npy")  # This may not exist
+            f"{self.global_save_path}lcurves.npy"
+        )  # This may not exist
         pix_data = np.load(f"{self.global_save_path}pix.npy")
         time_npy = np.load(f"{self.global_save_path}times.npy")
         tdf = pd.DataFrame({"Time": time_npy})
@@ -394,10 +394,8 @@ class AstroMap:
         width_ratios.append(1.25 * len(sel_regions))
 
         grs = gs.GridSpec(
-            len(sel_regions),
-            len(sel_regions) + 1,
-            width_ratios=tuple(
-                width_ratios))  # May look horrible but fast to check
+            len(sel_regions), len(sel_regions) + 1, width_ratios=tuple(width_ratios)
+        )  # May look horrible but fast to check
 
         # First need to check maxima and minima for plotting
         found_max = 0
@@ -441,18 +439,19 @@ class AstroMap:
 
                 for rel_section, label in zip(sel_regions, labels):
                     numpyrow, numpycol = self.translate_number(
-                        int(rel_section), self.nrowcol)
+                        int(rel_section), self.nrowcol
+                    )
                     curr_aia = plt.imread(combo_images[i])
                     curr_lcurve = lcurve_data[numpyrow, numpycol, :]
                     curr_pix = pix_data[numpyrow, numpycol, :]
 
-                    plt.subplot(grs[0:len(sel_regions), 0:len(sel_regions)])
+                    plt.subplot(grs[0 : len(sel_regions), 0 : len(sel_regions)])
                     plt.imshow(curr_aia)
                     plt.title(f"AIA {self.wvlnth} : {curr_time}")
                     plt.axis("off")
 
                     # Plot lightcurve and corresponding column
-                    plt.subplot(grs[counter:counter + 1, len(sel_regions)])
+                    plt.subplot(grs[counter : counter + 1, len(sel_regions)])
                     ax = plt.gca()
                     plt.plot(timearr, curr_lcurve, linewidth=2, color="black")
                     ax.set_ylabel("dn/s")
@@ -473,17 +472,16 @@ class AstroMap:
                     counter += 1
 
                 plt.tight_layout()
-                os.makedirs(f"{self.global_save_path}Selected_Regions/",
-                            exist_ok=True)
-                plt.savefig(
-                    f"{self.global_save_path}Selected_Regions/{i:03d}.png")
+                os.makedirs(f"{self.global_save_path}Selected_Regions/", exist_ok=True)
+                plt.savefig(f"{self.global_save_path}Selected_Regions/{i:03d}.png")
                 plt.close(fig)
 
                 print(f"Done index : {i}")
 
         # Multiprocessing requirements: Array of arrays and process list
         vector_index_div = np.array_split(
-            np.array(np.arange(len(combo_images))), self.n_cpus)
+            np.array(np.arange(len(combo_images))), self.n_cpus
+        )
         proc = []
 
         for list_indices_proc in vector_index_div:
@@ -511,8 +509,7 @@ class AstroMap:
         tdf.Time = pd.to_datetime(tdf.Time)
         timearr = tdf.Time
 
-        itotal = np.arange(
-            len(timearr))  # This will check each of the timesteps
+        itotal = np.arange(len(timearr))  # This will check each of the timesteps
 
         # This should create a found maxima, found minima
         found_max = 0
@@ -562,8 +559,7 @@ class AstroMap:
 
                 counter += 1
             plt.tight_layout()
-            os.makedirs(f"{self.global_save_path}Selected_Regions/",
-                        exist_ok=True)
+            os.makedirs(f"{self.global_save_path}Selected_Regions/", exist_ok=True)
             plt.savefig(f"{self.global_save_path}Selected_Regions/{i:03d}.png")
             plt.close(fig)
 
@@ -602,8 +598,9 @@ class AstroMap:
         imfs = emd(region.values)
 
         image_list = sorted(glob.glob(f"{path_to_picture}*.png"))
-        vector_index_div = np.array_split(np.array(np.arange(len(image_list))),
-                                          self.n_cpus)
+        vector_index_div = np.array_split(
+            np.array(np.arange(len(image_list))), self.n_cpus
+        )
         proc = []
 
         colors = ["black", "blue", "red"]
@@ -628,11 +625,7 @@ class AstroMap:
             if index != len(imfs) - 1:
                 fig.add_subplot(len(imfs), 1, len(imfs) - 1 - index)
                 ax = plt.gca()
-                plt.plot(time,
-                         i,
-                         color=colors[0],
-                         linewidth=4,
-                         label=f"IMF {index}")
+                plt.plot(time, i, color=colors[0], linewidth=4, label=f"IMF {index}")
                 ybot, ytop = ax.get_ylim()
                 delta_y = ytop - ybot
                 move_by = (max_height - min_height) / 2
@@ -641,10 +634,9 @@ class AstroMap:
                 ax.yaxis.set_label_position("right")
                 ax.set_ylim(min_height, max_height)
                 ax.set(ylabel=f"IMF {index + 1}", xlabel="", xticks=[])
-                lineset[f"{index}"] = ax.axvline(x=time_curr,
-                                                 color="black",
-                                                 alpha=0.4,
-                                                 linewidth=5)
+                lineset[f"{index}"] = ax.axvline(
+                    x=time_curr, color="black", alpha=0.4, linewidth=5
+                )
 
         # Draw original signal + last IMF (residual)
         fig.add_subplot(len(imfs), 1, len(imfs))
@@ -658,10 +650,9 @@ class AstroMap:
             label="Residual",
             linewidth=4,
         )
-        lineset["signal"] = ax1.axvline(x=time_curr,
-                                        color="black",
-                                        alpha=0.4,
-                                        linewidth=5)
+        lineset["signal"] = ax1.axvline(
+            x=time_curr, color="black", alpha=0.4, linewidth=5
+        )
         ax1.set(ylabel=f"Original Signal")
 
         import matplotlib.dates as mdates
@@ -796,16 +787,16 @@ def create_point_df(id, selected_files, n_vec_soln):
     for vec_LINE in range(n_vec_soln):
         # We now have selected the length of points! - Only useful if want to get height profile
 
-        starray = start[vec_LINE:vec_LINE + 1]
+        starray = start[vec_LINE : vec_LINE + 1]
         radius = starray.iloc[0, 0]
         start_lat = starray.iloc[0, 1] * (180 / np.pi)  # This looks promising
         start_long = starray.iloc[0, 2] * 180 / np.pi
 
         # Whole vectors!
-        r_row = r_ends[vec_LINE:vec_LINE + 1]
-        lat_row = elat[vec_LINE:vec_LINE + 1]
-        long_row = elong[vec_LINE:vec_LINE + 1]
-        nstep_row = nstep_file[vec_LINE:vec_LINE + 1]
+        r_row = r_ends[vec_LINE : vec_LINE + 1]
+        lat_row = elat[vec_LINE : vec_LINE + 1]
+        long_row = elong[vec_LINE : vec_LINE + 1]
+        nstep_row = nstep_file[vec_LINE : vec_LINE + 1]
 
         # Select the first point of each row
         r_point = r_row.iloc[0, 0]
@@ -832,16 +823,18 @@ def create_point_df(id, selected_files, n_vec_soln):
     end_long = np.asarray(long_ends)
 
     end_lat = -end_lat
-    df = pd.DataFrame({
-        "obs_time": time,
-        "n_steps": nstep_list,
-        "start_r": start_r,
-        "start_lat": start_lat,
-        "start_long": start_long,
-        "end_r": end_r,
-        "end_lat": end_lat,
-        "end_long": end_long,
-    })
+    df = pd.DataFrame(
+        {
+            "obs_time": time,
+            "n_steps": nstep_list,
+            "start_r": start_r,
+            "start_lat": start_lat,
+            "start_long": start_long,
+            "end_r": end_r,
+            "end_lat": end_lat,
+            "end_long": end_long,
+        }
+    )
 
     return df
 
@@ -912,13 +905,12 @@ def split_roi(base_ROI, nrowcol, pix=False, header=None):
             x_right = [x0 + dx * (col + 1)]  # 0 to n-1 left to right
 
             if pix:
-                x_left_pix, y_bot_pix = arc2px(x_left[0].value, y_bot[0].value,
-                                               header)
-                x_right_pix, y_top_pix = arc2px(x_right[0].value,
-                                                y_top[0].value, header)
+                x_left_pix, y_bot_pix = arc2px(x_left[0].value, y_bot[0].value, header)
+                x_right_pix, y_top_pix = arc2px(
+                    x_right[0].value, y_top[0].value, header
+                )
 
-                total_rois.append(
-                    [x_left_pix, x_right_pix, y_bot_pix, y_top_pix])
+                total_rois.append([x_left_pix, x_right_pix, y_bot_pix, y_top_pix])
 
             else:
                 total_rois.append([x_left, x_right, y_bot, y_top])
@@ -953,13 +945,15 @@ def splitCoords(base_ROI, nrowcol):
             lon_left = [lon0 + dlon * col]
             lon_right = [lon0 + dlon * (col + 1)]
 
-            total_rois.append([
-                regionN,
-                {
-                    "lon": (lon_left * u.deg, lon_right * u.deg),
-                    "lat": (lat_bot * u.deg, lat_top * u.deg),
-                },
-            ])
+            total_rois.append(
+                [
+                    regionN,
+                    {
+                        "lon": (lon_left * u.deg, lon_right * u.deg),
+                        "lat": (lat_bot * u.deg, lat_top * u.deg),
+                    },
+                ]
+            )
 
             regionN += 1  # Numbering of regions from top left > right > down
 
@@ -995,17 +989,15 @@ def track_ROI(init_submap, fullmap):
     return new_coords
 
 
-def getSegment(CoordsHGS, smap, all_hgs_coords):
+def getSegment(CoordsHGS, all_hgs_coords):
     """
     Pass a single Coords object, return values for it
     """
     latmin, latmax = CoordsHGS["lat"]
     lonmin, lonmax = CoordsHGS["lon"]
     segment = np.logical_and(
-        np.logical_and(all_hgs_coords.lon > lonmin,
-                       all_hgs_coords.lon < lonmax),
-        np.logical_and(all_hgs_coords.lat > latmin,
-                       all_hgs_coords.lat < latmax),
+        np.logical_and(all_hgs_coords.lon > lonmin, all_hgs_coords.lon < lonmax),
+        np.logical_and(all_hgs_coords.lat > latmin, all_hgs_coords.lat < latmax),
     ).nonzero()
     return segment
 
@@ -1036,8 +1028,9 @@ def calculateLons(initial_submap, curr_submap, Coords):
         frame="heliographic_stonyhurst",
         obstime=dinit,
     )
-    rotated_coord = RotatedSunFrame(base=start_coord, duration=dt.to(
-        u.second)).transform_to(start_coord.frame)
+    rotated_coord = RotatedSunFrame(
+        base=start_coord, duration=dt.to(u.second)
+    ).transform_to(start_coord.frame)
 
     rotlon0 = rotated_coord.lon
     rotlonF = rotated_coord.lon + dlon
@@ -1062,10 +1055,12 @@ def astro_track_ROI(ref_map, newmap, observer, large_roi):
     from sunpy.physics.differential_rotation import solar_rotate_coordinate
     from astropy.coordinates import SkyCoord
 
-    t_ref = datetime.datetime.strptime(ref_map.fits_header["DATE-OBS"],
-                                       "%Y-%m-%dT%H:%M:%S.%f")
-    t_new = datetime.datetime.strptime(newmap.fits_header["DATE-OBS"],
-                                       "%Y-%m-%dT%H:%M:%S.%f")
+    t_ref = datetime.datetime.strptime(
+        ref_map.fits_header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S.%f"
+    )
+    t_new = datetime.datetime.strptime(
+        newmap.fits_header["DATE-OBS"], "%Y-%m-%dT%H:%M:%S.%f"
+    )
 
     x_0 = large_roi[0]
     x_f = large_roi[1]
@@ -1076,11 +1071,9 @@ def astro_track_ROI(ref_map, newmap, observer, large_roi):
     dy = y_f - y_0
 
     center_x, center_y = dx / 2 + x_0, dy / 2 + y_0
-    start_coord = SkyCoord(center_x,
-                           center_y,
-                           frame="helioprojective",
-                           obstime=t_ref,
-                           observer=observer)
+    start_coord = SkyCoord(
+        center_x, center_y, frame="helioprojective", obstime=t_ref, observer=observer
+    )
     rotated_center = solar_rotate_coordinate(start_coord, time=t_new)
 
     new_coords = [
@@ -1107,13 +1100,17 @@ def arc2px(x_arc, y_arc, header):
 
     for i in range(0, len(xpx)):
         xpx[i] = int(
-            np.round(((x_arc[i] - header["crval1"]) / header["cdelt1"]) +
-                     header["crpix1"]))
+            np.round(
+                ((x_arc[i] - header["crval1"]) / header["cdelt1"]) + header["crpix1"]
+            )
+        )
 
     for j in range(0, len(ypx)):
         ypx[j] = int(
-            np.round(((y_arc[j] - header["crval2"]) / header["cdelt2"]) +
-                     header["crpix2"]))
+            np.round(
+                ((y_arc[j] - header["crval2"]) / header["cdelt2"]) + header["crpix2"]
+            )
+        )
 
     return xpx, ypx
 

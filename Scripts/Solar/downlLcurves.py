@@ -18,7 +18,7 @@ def getRemoteData(wavelength=193):
     sdoaia = SDOAIAManager(
         times=("2020/5/27", "2020/5/28 14:00"),
         cadence=1 * u.minute,
-        aiaPath="/disk/solar18/ddp/PhD/3_Solo_SDO/unsafe/remoteData/AIA/",
+        aiaPath="/Users/ddp/Documents/PhD/solo_sdo/unsafe/remoteData/AIA/",
         wavelength=wavelength * u.Angstrom,
     )
     sdoaia.downloadData(force=True)

@@ -53,6 +53,7 @@ class LcurveManager:
 def plotLcurves(lcurveDic, column="11:13_21:23", vspanStartEnd=(None, None)):
     """
     Plots lightcurves in fancy manner
+    Adds a vertical span to the plot to show the time of event if required
     """
 
     import matplotlib.pyplot as plt

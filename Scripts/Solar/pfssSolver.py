@@ -6,19 +6,22 @@ from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sunpy.map import Map
 
 import pfsspy
 import pfsspy.tracing as tracing
-from Solar.remoteData import GONGManager
+
+# This import only works when this package is imported into twoStepBackmap.py
+from Solar.remoteData import GONGManager as GONGManager
 
 
 class PFSSSolver:
-    def __init__(self,
-                 gongMap,
-                 SSradius: float = 2.5,
-                 nrho: int = 25,
-                 tracer=tracing.FortranTracer()):
+    def __init__(
+        self,
+        gongMap,
+        SSradius: float = 2.5,
+        nrho: int = 25,
+        tracer=tracing.FortranTracer(),
+    ):
         """
         PFSS solution to solar magnetic field is calculated on a 3D grid (phi, s, rho).
         rho = ln(r), and r is the standard spherical radial coordinate.
@@ -49,20 +52,17 @@ class PFSSSolver:
             obstimes.append(coord.obstime)
 
         # use the default createSeeds call. Note that it allows for only one frame
-        self.seeds = self.createSeeds(lons,
-                                      lats,
-                                      rads,
-                                      frame=self.gongMap.coordinate_frame)
+        self.seeds = self.createSeeds(
+            lons, lats, rads, frame=self.gongMap.coordinate_frame
+        )
 
         # Store the time information for each seed on dfseeds
         # Seeds have a time but field lines do not
         self.dfseeds = pd.DataFrame({"seed": self.seeds}, index=obstimes)
 
-    def seedMesh(self,
-                 sinLat=(0.25, 0.5),
-                 long=(60, 100),
-                 rootPoints=5,
-                 seedHeight=None):
+    def seedMesh(
+        self, sinLat=(0.25, 0.5), long=(60, 100), rootPoints=5, seedHeight=None
+    ):
         s = np.linspace(sinLat[0], sinLat[1], rootPoints)
         phi = np.linspace(long[0], long[1], rootPoints)
         s, phi = np.meshgrid(s, phi)
@@ -72,10 +72,9 @@ class PFSSSolver:
         lon = (phi * u.deg).ravel()
         radius = self.SSradiusRsun if seedHeight == None else seedHeight
 
-        seeds = self.createSeeds(lons=lon,
-                                 lats=lat,
-                                 radius=radius,
-                                 frame=self.gongMap.coordinate_frame)
+        seeds = self.createSeeds(
+            lons=lon, lats=lat, radius=radius, frame=self.gongMap.coordinate_frame
+        )
 
         self.seeds = seeds
         return seeds
@@ -97,26 +96,26 @@ class PFSSSolver:
         title = f" {m.date.value} | Synoptic GONG magnetogram |"
 
         if "seeds" in kwargs:
-            ax.plot_coord(kwargs["seeds"],
-                          color='black',
-                          marker='o',
-                          linewidth=0,
-                          markersize=5)
+            ax.plot_coord(
+                kwargs["seeds"], color="black", marker="o", linewidth=0, markersize=5
+            )
             title = title + "| seeds (black) "
 
         if "flines" in kwargs:
             for fline in kwargs["flines"]:
                 ax.plot_coord(
                     fline.coords,
-                    color='blue',
+                    color="blue",
                     linewidth=1,
                     alpha=0.4,
                 )
-                ax.plot_coord(fline.solar_footpoint,
-                              color="red",
-                              marker="x",
-                              linewidth=0,
-                              markersize=5)
+                ax.plot_coord(
+                    fline.solar_footpoint,
+                    color="red",
+                    marker="x",
+                    linewidth=0,
+                    markersize=5,
+                )
             title = title + "| flines (blue)"
 
         ax.set_title(title)
