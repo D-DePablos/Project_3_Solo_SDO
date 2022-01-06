@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 **unsafe
-.DS_Store
-.DS_Store
+**/.DS*
+*.DS*

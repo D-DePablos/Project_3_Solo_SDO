@@ -24,7 +24,7 @@ ssRadius = 2.5
 # accFactor = 4 / 3
 accFactor = 1
 MARGINAIA, MARGINFLINE = 0.2, 0.5
-FORCE = True  # Whether to force creation of new images
+FORCE = False  # Whether to force creation of new images
 timeRangeFreq = "30min"  # Default 30min
 Region = {
     "FOV_lon_lat": [30, 27, 35, 35],

@@ -76,7 +76,6 @@ class RemoteManager:
         import matplotlib.pyplot as plt
 
         if "Regions" in kwargs and "refMap" in kwargs:
-            # TODO: Add cutout regions to map
             refMap = kwargs["refMap"]  # Assuming already is a sunpy Map
             customRegion = kwargs["Regions"]["customRegion"]
             all_hpc = sunpy.map.all_coordinates_from_map(refMap)
